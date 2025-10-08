@@ -31,29 +31,31 @@ api.interceptors.request.use(
   }
 );
 
-// Auth API - Using Supabase Auth
+// Auth API - Using Supabase Magic Link Auth
 export const authAPI = {
   register: async (data) => {
     try {
-      console.log('Attempting to register user...');
-      const { data: authData, error } = await supabase.auth.signUp({
+      console.log('Sending magic link for registration...');
+      const { data: authData, error } = await supabase.auth.signInWithOtp({
         email: data.email,
-        password: data.password,
         options: {
           data: {
             name: data.name,
           },
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: `${window.location.origin}/Echo-style-Web/`,
         }
       });
       
       if (error) {
-        console.error('Registration error:', error);
-        throw new Error(error.message || 'Registration failed');
+        console.error('Magic link error:', error);
+        throw new Error(error.message || 'Failed to send magic link');
       }
       
-      console.log('Registration successful:', authData);
-      return { data: authData.user, token: authData.session?.access_token };
+      console.log('Magic link sent successfully:', authData);
+      return { 
+        data: { message: 'Check your email for a magic link to sign in!' },
+        token: null 
+      };
     } catch (err) {
       console.error('Auth register error:', err);
       throw err;
@@ -62,19 +64,24 @@ export const authAPI = {
   
   login: async (data) => {
     try {
-      console.log('Attempting to login user...');
-      const { data: authData, error } = await supabase.auth.signInWithPassword({
+      console.log('Sending magic link for login...');
+      const { data: authData, error } = await supabase.auth.signInWithOtp({
         email: data.email,
-        password: data.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/Echo-style-Web/`,
+        }
       });
       
       if (error) {
-        console.error('Login error:', error);
-        throw new Error(error.message || 'Login failed');
+        console.error('Magic link error:', error);
+        throw new Error(error.message || 'Failed to send magic link');
       }
       
-      console.log('Login successful:', authData);
-      return { data: authData.user, token: authData.session?.access_token };
+      console.log('Magic link sent successfully:', authData);
+      return { 
+        data: { message: 'Check your email for a magic link to sign in!' },
+        token: null 
+      };
     } catch (err) {
       console.error('Auth login error:', err);
       throw err;

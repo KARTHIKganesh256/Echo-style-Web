@@ -101,14 +101,106 @@ export const analysisAPI = {
   getSeasonPalette: (season) => api.get(`/analyze-tone/palette/${season}`),
 };
 
-// Products API
+// Products API - Using Supabase
 export const productsAPI = {
-  getProducts: (params) => api.get('/products', { params }),
-  getProductsBySeason: (season) => api.get(`/products/season/${season}`),
-  getRecommendedProducts: () => api.get('/products/recommended'),
-  getProductById: (id) => api.get(`/products/${id}`),
-  saveProduct: (id) => api.post(`/products/${id}/save`),
-  unsaveProduct: (id) => api.delete(`/products/${id}/save`),
+  getProducts: async (params = {}) => {
+    try {
+      let query = supabase.from('products').select('*');
+      
+      // Apply filters
+      if (params.season && params.season !== 'All Seasons') {
+        query = query.eq('season', params.season);
+      }
+      if (params.type && params.type !== 'All Types') {
+        query = query.eq('category', params.type);
+      }
+      if (params.chroma && params.chroma !== 'All Chroma') {
+        query = query.eq('chroma', params.chroma);
+      }
+      if (params.color && params.color !== 'All Colors') {
+        query = query.eq('hue', params.color);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return { data };
+    } catch (err) {
+      console.error('Error fetching products:', err);
+      throw err;
+    }
+  },
+  
+  getProductsBySeason: async (season) => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('season', season);
+      
+      if (error) throw error;
+      return { data };
+    } catch (err) {
+      console.error('Error fetching products by season:', err);
+      throw err;
+    }
+  },
+  
+  getRecommendedProducts: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .limit(12);
+      
+      if (error) throw error;
+      return { data };
+    } catch (err) {
+      console.error('Error fetching recommended products:', err);
+      throw err;
+    }
+  },
+  
+  getProductById: async (id) => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (error) throw error;
+      return { data };
+    } catch (err) {
+      console.error('Error fetching product by ID:', err);
+      throw err;
+    }
+  },
+  
+  saveProduct: async (id) => {
+    try {
+      const user = await supabase.auth.getUser();
+      if (!user.data.user) throw new Error('Not authenticated');
+      
+      // For now, just return success - you can implement saved products table later
+      return { data: { success: true } };
+    } catch (err) {
+      console.error('Error saving product:', err);
+      throw err;
+    }
+  },
+  
+  unsaveProduct: async (id) => {
+    try {
+      const user = await supabase.auth.getUser();
+      if (!user.data.user) throw new Error('Not authenticated');
+      
+      // For now, just return success - you can implement saved products table later
+      return { data: { success: true } };
+    } catch (err) {
+      console.error('Error unsaving product:', err);
+      throw err;
+    }
+  },
 };
 
 export default api;

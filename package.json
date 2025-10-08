@@ -1,0 +1,30 @@
+{
+  "name": "echo-style-assistant-web",
+  "version": "1.0.0",
+  "description": "Full-stack web application for personalized style recommendations based on skin tone and seasonal color analysis",
+  "main": "index.js",
+  "scripts": {
+    "install-all": "npm run install-server && npm run install-client",
+    "install-server": "cd server && npm install",
+    "install-client": "cd client && npm install",
+    "dev": "concurrently \"npm run dev-server\" \"npm run dev-client\"",
+    "dev-server": "cd server && npm run dev",
+    "dev-client": "cd client && npm run dev",
+    "seed": "cd server && node data/seedDatabase.js",
+    "start": "cd server && npm start"
+  },
+  "keywords": [
+    "style",
+    "fashion",
+    "color-analysis",
+    "seasonal-colors",
+    "react",
+    "nodejs",
+    "mongodb"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

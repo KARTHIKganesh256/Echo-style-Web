@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  body {
+    @apply m-0 p-0 font-sans antialiased;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    cursor: none;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white bg-opacity-10 backdrop-blur-lg border border-white border-opacity-20 rounded-2xl shadow-xl;
+  }
+
+  .glass-dark {
+    @apply bg-black bg-opacity-20 backdrop-blur-lg border border-white border-opacity-10 rounded-2xl shadow-2xl;
+  }
+
+  .btn-primary {
+    @apply px-8 py-3 rounded-full font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg;
+  }
+
+  .btn-glow {
+    @apply relative overflow-hidden;
+  }
+
+  .btn-glow::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 transition-opacity duration-500;
+  }
+
+  .btn-glow:hover::before {
+    @apply opacity-30;
+    animation: shine 1.5s ease-in-out infinite;
+  }
+
+  @keyframes shine {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 transform hover:scale-105 hover:shadow-2xl;
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-red-500;
+  }
+}
+
+/* Custom Cursor */
+.custom-cursor {
+  position: fixed;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: difference;
+  transition: transform 0.2s ease, width 0.2s ease, height 0.2s ease;
+}
+
+.custom-cursor.active {
+  width: 40px;
+  height: 40px;
+  background: rgba(102, 126, 234, 0.6);
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Skeleton Loading */
+.skeleton {
+  @apply animate-pulse bg-gray-300 rounded;
+}
+
+/* Selection */
+::selection {
+  @apply bg-purple-500 text-white;
+}
+
+/* Dropdown Options - Fix for visibility */
+select option {
+  background-color: #1a1a2e !important;
+  color: #ffffff !important;
+}
+
+/* Dark theme for select elements */
+select {
+  color-scheme: dark;
+}

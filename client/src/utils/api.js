@@ -103,27 +103,49 @@ export const analysisAPI = {
 export const productsAPI = {
   getProducts: async (params = {}) => {
     try {
+      console.log('🔍 Fetching products with params:', params);
+      console.log('🔗 Supabase URL:', supabase.supabaseUrl);
+      
       let query = supabase.from('products').select('*');
       
       // Apply filters
-      if (params.season && params.season !== 'All Seasons') {
+      if (params.season && params.season !== 'All Seasons' && params.season !== 'All') {
         query = query.eq('season', params.season);
+        console.log('🔍 Filtering by season:', params.season);
       }
-      if (params.type && params.type !== 'All Types') {
-        query = query.eq('category', params.type);
+      if (params.productType && params.productType !== 'All Types' && params.productType !== 'All') {
+        query = query.eq('category', params.productType);
+        console.log('🔍 Filtering by type:', params.productType);
       }
-      if (params.chroma && params.chroma !== 'All Chroma') {
+      if (params.chroma && params.chroma !== 'All Chroma' && params.chroma !== 'All') {
         query = query.eq('chroma', params.chroma);
+        console.log('🔍 Filtering by chroma:', params.chroma);
       }
-      if (params.color && params.color !== 'All Colors') {
-        query = query.eq('hue', params.color);
+      if (params.hue && params.hue !== 'All Colors' && params.hue !== 'All') {
+        query = query.eq('hue', params.hue);
+        console.log('🔍 Filtering by hue:', params.hue);
       }
       
+      console.log('🔍 Executing query...');
       const { data, error } = await query;
-      if (error) throw error;
-      return { data };
+      
+      if (error) {
+        console.error('❌ Supabase error:', error);
+        throw error;
+      }
+      
+      console.log('✅ Products fetched successfully:', data?.length || 0, 'items');
+      console.log('📦 Sample product:', data?.[0]);
+      
+      return { data: data || [] };
     } catch (err) {
-      console.error('Error fetching products:', err);
+      console.error('❌ Error fetching products:', err);
+      console.error('❌ Error details:', {
+        message: err.message,
+        details: err.details,
+        hint: err.hint,
+        code: err.code
+      });
       throw err;
     }
   },

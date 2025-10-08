@@ -21,11 +21,11 @@ const SignupPage = () => {
     setLoading(true);
 
     try {
-      const { data } = await authAPI.register(formData);
-      setUser(data, data.token);
+      const { data, token } = await authAPI.register(formData);
+      setUser(data, token);
       navigate('/analyze');
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
+      setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }

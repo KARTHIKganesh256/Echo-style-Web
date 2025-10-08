@@ -21,11 +21,11 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      const { data } = await authAPI.login(formData);
-      setUser(data, data.token);
+      const { data, token } = await authAPI.login(formData);
+      setUser(data, token);
       navigate('/analyze');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }

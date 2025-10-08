@@ -31,12 +31,46 @@ api.interceptors.request.use(
   }
 );
 
-// Auth API
+// Auth API - Using Supabase Auth
 export const authAPI = {
-  register: (data) => api.post('/auth/register', data),
-  login: (data) => api.post('/auth/login', data),
-  getProfile: () => api.get('/auth/profile'),
-  updateProfile: (data) => api.put('/auth/profile', data),
+  register: async (data) => {
+    const { data: authData, error } = await supabase.auth.signUp({
+      email: data.email,
+      password: data.password,
+      options: {
+        data: {
+          name: data.name,
+        }
+      }
+    });
+    
+    if (error) throw error;
+    return { data: authData.user, token: authData.session?.access_token };
+  },
+  
+  login: async (data) => {
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
+      email: data.email,
+      password: data.password,
+    });
+    
+    if (error) throw error;
+    return { data: authData.user, token: authData.session?.access_token };
+  },
+  
+  getProfile: async () => {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    return { data: user };
+  },
+  
+  updateProfile: async (userData) => {
+    const { data, error } = await supabase.auth.updateUser({
+      data: userData
+    });
+    if (error) throw error;
+    return { data: data.user };
+  },
 };
 
 // Analysis API

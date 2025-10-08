@@ -34,33 +34,56 @@ api.interceptors.request.use(
 // Auth API - Using Supabase Auth
 export const authAPI = {
   register: async (data) => {
-    const { data: authData, error } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-      options: {
-        data: {
-          name: data.name,
+    try {
+      console.log('Attempting to register user...');
+      const { data: authData, error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            name: data.name,
+          },
+          emailRedirectTo: window.location.origin,
         }
+      });
+      
+      if (error) {
+        console.error('Registration error:', error);
+        throw new Error(error.message || 'Registration failed');
       }
-    });
-    
-    if (error) throw error;
-    return { data: authData.user, token: authData.session?.access_token };
+      
+      console.log('Registration successful:', authData);
+      return { data: authData.user, token: authData.session?.access_token };
+    } catch (err) {
+      console.error('Auth register error:', err);
+      throw err;
+    }
   },
   
   login: async (data) => {
-    const { data: authData, error } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    });
-    
-    if (error) throw error;
-    return { data: authData.user, token: authData.session?.access_token };
+    try {
+      console.log('Attempting to login user...');
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+      
+      if (error) {
+        console.error('Login error:', error);
+        throw new Error(error.message || 'Login failed');
+      }
+      
+      console.log('Login successful:', authData);
+      return { data: authData.user, token: authData.session?.access_token };
+    } catch (err) {
+      console.error('Auth login error:', err);
+      throw err;
+    }
   },
   
   getProfile: async () => {
     const { data: { user }, error } = await supabase.auth.getUser();
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return { data: user };
   },
   
@@ -68,7 +91,7 @@ export const authAPI = {
     const { data, error } = await supabase.auth.updateUser({
       data: userData
     });
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return { data: data.user };
   },
 };

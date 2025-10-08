@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { authAPI, productsAPI } from '../utils/api';
+import { supabase } from '../utils/supabase';
 import useAuthStore from '../store/useAuthStore';
 
 const ProfilePage = () => {
@@ -76,14 +77,32 @@ const ProfilePage = () => {
     if (!displayName.trim()) return;
     
     try {
-      await authAPI.updateProfile({
-        data: { name: displayName.trim() }
+      const trimmedName = displayName.trim();
+      console.log('Updating name to:', trimmedName);
+      
+      const { data, error } = await supabase.auth.updateUser({
+        data: { 
+          name: trimmedName,
+          profile_photo: user?.user_metadata?.profile_photo 
+        }
       });
+      
+      if (error) {
+        console.error('Supabase error:', error);
+        throw new Error(error.message);
+      }
+      
       setEditingName(false);
-      updateUser({ user_metadata: { name: displayName.trim() } });
+      updateUser({ 
+        user_metadata: { 
+          ...user?.user_metadata,
+          name: trimmedName 
+        } 
+      });
+      console.log('Name updated successfully');
     } catch (error) {
       console.error('Failed to update name:', error);
-      alert('Failed to update name. Please try again.');
+      alert(`Failed to update name: ${error.message}`);
     }
   };
 
@@ -106,19 +125,40 @@ const ProfilePage = () => {
     setUploadingPhoto(true);
     try {
       // Convert to base64 for demo purposes
-      // In production, you'd upload to a storage service
       const reader = new FileReader();
       reader.onload = async (e) => {
         try {
           const base64 = e.target.result;
-          await authAPI.updateProfile({
-            data: { profile_photo: base64 }
+          console.log('Updating profile with photo...');
+          
+          // Update user metadata in Supabase
+          const { data, error } = await supabase.auth.updateUser({
+            data: { 
+              profile_photo: base64,
+              name: displayName 
+            }
           });
-          updateUser({ user_metadata: { profile_photo: base64 } });
+          
+          if (error) {
+            console.error('Supabase error:', error);
+            throw new Error(error.message);
+          }
+          
+          console.log('Profile updated successfully:', data);
+          
+          // Update local state
+          updateUser({ 
+            user_metadata: { 
+              ...user?.user_metadata,
+              profile_photo: base64,
+              name: displayName 
+            } 
+          });
+          
           alert('Profile photo updated successfully!');
         } catch (error) {
           console.error('Failed to update photo:', error);
-          alert('Failed to update photo. Please try again.');
+          alert(`Failed to update photo: ${error.message}`);
         } finally {
           setUploadingPhoto(false);
         }

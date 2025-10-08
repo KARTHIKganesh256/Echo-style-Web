@@ -87,9 +87,7 @@ export const authAPI = {
   },
   
   updateProfile: async (userData) => {
-    const { data, error } = await supabase.auth.updateUser({
-      data: userData
-    });
+    const { data, error } = await supabase.auth.updateUser(userData);
     if (error) throw new Error(error.message);
     return { data: data.user };
   },

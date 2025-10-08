@@ -37,10 +37,13 @@ const ProductsPage = () => {
   const fetchProducts = async () => {
     setLoading(true);
     try {
+      console.log('Fetching products with filters:', filters);
       const { data } = await productsAPI.getProducts(filters);
-      setProducts(data);
+      console.log('Products received:', data);
+      setProducts(data || []);
     } catch (error) {
       console.error('Failed to fetch products:', error);
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -291,7 +294,22 @@ const ProductsPage = () => {
             animate={{ opacity: 1 }}
             className="text-center py-20"
           >
-            <p className="text-2xl text-white">No products found. Try adjusting your filters!</p>
+            <p className="text-2xl text-white mb-4">No products found. Try adjusting your filters!</p>
+            <p className="text-purple-200 mb-6">
+              Make sure you've set up the products database in Supabase.
+            </p>
+            <div className="glass p-6 max-w-md mx-auto">
+              <h3 className="text-lg font-bold text-white mb-3">Quick Setup:</h3>
+              <ol className="text-left text-purple-200 space-y-2">
+                <li>1. Go to your Supabase dashboard</li>
+                <li>2. Open SQL Editor</li>
+                <li>3. Run the products table creation script</li>
+                <li>4. Add sample products</li>
+              </ol>
+              <p className="text-sm text-purple-300 mt-4">
+                Check SUPABASE_QUICK_SETUP.md for detailed instructions!
+              </p>
+            </div>
           </motion.div>
         )}
       </div>

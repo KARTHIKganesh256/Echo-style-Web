@@ -1,4 +1,9 @@
 import axios from 'axios';
+import { supabase } from './supabase';
+
+// Supabase configuration
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const USE_SUPABASE = !!SUPABASE_URL;
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 

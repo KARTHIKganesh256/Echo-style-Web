@@ -8,6 +8,9 @@ const ProfilePage = () => {
   const [savedProducts, setSavedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState(user?.preferences?.theme || 'light');
+  const [editingName, setEditingName] = useState(false);
+  const [displayName, setDisplayName] = useState(user?.user_metadata?.name || user?.email?.split('@')[0] || 'User');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -69,6 +72,65 @@ const ProfilePage = () => {
     }
   };
 
+  const handleNameUpdate = async () => {
+    if (!displayName.trim()) return;
+    
+    try {
+      await authAPI.updateProfile({
+        data: { name: displayName.trim() }
+      });
+      setEditingName(false);
+      updateUser({ user_metadata: { name: displayName.trim() } });
+    } catch (error) {
+      console.error('Failed to update name:', error);
+      alert('Failed to update name. Please try again.');
+    }
+  };
+
+  const handlePhotoUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      // Convert to base64 for demo purposes
+      // In production, you'd upload to a storage service
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const base64 = e.target.result;
+          await authAPI.updateProfile({
+            data: { profile_photo: base64 }
+          });
+          updateUser({ user_metadata: { profile_photo: base64 } });
+          alert('Profile photo updated successfully!');
+        } catch (error) {
+          console.error('Failed to update photo:', error);
+          alert('Failed to update photo. Please try again.');
+        } finally {
+          setUploadingPhoto(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Failed to process photo:', error);
+      alert('Failed to process photo. Please try again.');
+      setUploadingPhoto(false);
+    }
+  };
+
   const seasonalPalettes = {
     Spring: ['#FFD700', '#FF6B9D', '#98D8C8', '#F7CAC9', '#FFDAB9', '#E0BBE4', '#FFE5B4', '#B0E57C'],
     Summer: ['#B4A7D6', '#AED9E0', '#D5A6BD', '#E8DFF5', '#A2B5CD', '#C7CEEA', '#B0C4DE', '#D8BFD8'],
@@ -108,15 +170,92 @@ const ProfilePage = () => {
           className="glass p-8 mb-8"
         >
           <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-3xl font-bold text-white mb-2">{user?.name}</h2>
-              <p className="text-purple-200">{user?.email}</p>
+            <div className="flex items-center gap-6">
+              {/* Profile Photo */}
+              <div className="relative">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
+                  {user?.user_metadata?.profile_photo ? (
+                    <img
+                      src={user.user_metadata.profile_photo}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    displayName.charAt(0).toUpperCase()
+                  )}
+                </div>
+                
+                {/* Upload Button */}
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  disabled={uploadingPhoto}
+                  className="absolute -bottom-1 -right-1 w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white text-sm hover:bg-purple-600 transition-colors"
+                >
+                  {uploadingPhoto ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    '📷'
+                  )}
+                </motion.button>
+                
+                {/* Hidden File Input */}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  disabled={uploadingPhoto}
+                />
+              </div>
+              
+              {/* User Details */}
+              <div>
+                {editingName ? (
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      className="text-3xl font-bold bg-transparent border-b-2 border-white text-white focus:outline-none"
+                      autoFocus
+                      onKeyPress={(e) => e.key === 'Enter' && handleNameUpdate()}
+                      onBlur={handleNameUpdate}
+                    />
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={handleNameUpdate}
+                      className="text-green-400 text-xl"
+                    >
+                      ✓
+                    </motion.button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 mb-2">
+                    <h2 className="text-3xl font-bold text-white">{displayName}</h2>
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => setEditingName(true)}
+                      className="text-purple-300 text-xl hover:text-white transition-colors"
+                      title="Edit name"
+                    >
+                      ✏️
+                    </motion.button>
+                  </div>
+                )}
+                <p className="text-purple-200">{user?.email}</p>
+              </div>
             </div>
+            
+            {/* Theme Toggle */}
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={handleThemeToggle}
-              className="p-4 rounded-full bg-white bg-opacity-20 text-2xl"
+              className="p-4 rounded-full bg-white bg-opacity-20 text-2xl hover:bg-opacity-30 transition-all"
+              title="Toggle theme"
             >
               {theme === 'light' ? '🌙' : '☀️'}
             </motion.button>

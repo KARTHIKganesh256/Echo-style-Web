@@ -5,10 +5,9 @@ import { authAPI } from '../utils/api';
 import useAuthStore from '../store/useAuthStore';
 
 const SignupPage = () => {
-  const [formData, setFormData] = useState({ name: '', email: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const { setUser } = useAuthStore();
   const navigate = useNavigate();
 
@@ -19,15 +18,14 @@ const SignupPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setSuccess(false);
     setLoading(true);
 
     try {
-      const { data } = await authAPI.register(formData);
-      setSuccess(true);
-      // Don't navigate immediately - user needs to check email
+      const { data, token } = await authAPI.register(formData);
+      setUser(data, token);
+      navigate('/analyze');
     } catch (err) {
-      setError(err.message || 'Failed to send magic link. Please try again.');
+      setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -60,15 +58,6 @@ const SignupPage = () => {
           </motion.div>
         )}
 
-        {success && (
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="bg-green-500 bg-opacity-20 border border-green-500 text-white px-4 py-3 rounded-lg mb-6"
-          >
-            ✨ Magic link sent! Check your email and click the link to complete signup.
-          </motion.div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <motion.div
@@ -105,6 +94,23 @@ const SignupPage = () => {
             />
           </motion.div>
 
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <label className="block text-white mb-2 font-medium">Password</label>
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              minLength="6"
+              className="w-full px-4 py-3 rounded-lg bg-white bg-opacity-10 border border-white border-opacity-20 text-white placeholder-purple-200 focus:outline-none focus:border-purple-400 transition-colors"
+              placeholder="••••••••"
+            />
+          </motion.div>
 
           <motion.button
             initial={{ opacity: 0, y: 20 }}
@@ -116,7 +122,7 @@ const SignupPage = () => {
             disabled={loading}
             className="w-full btn-primary bg-white text-purple-600 btn-glow disabled:opacity-50"
           >
-            {loading ? 'Sending Magic Link...' : 'Send Magic Link'}
+            {loading ? 'Creating Account...' : 'Sign Up'}
           </motion.button>
         </form>
 

@@ -17,6 +17,15 @@ const ProfilePage = () => {
     fetchProfile();
   }, []);
 
+  useEffect(() => {
+    // Update display name when user data changes
+    if (user?.user_metadata?.name) {
+      setDisplayName(user.user_metadata.name);
+    } else if (user?.email) {
+      setDisplayName(user.email.split('@')[0]);
+    }
+  }, [user]);
+
   const fetchProfile = async () => {
     setLoading(true);
     try {

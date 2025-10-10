@@ -46,7 +46,7 @@ const LandingPage = () => {
             transition={{ delay: 0.4, duration: 0.8 }}
             className="text-2xl md:text-3xl text-white mb-12 font-light"
           >
-            Your Style, <span className="text-purple-300">Powered by AI</span>
+            Your Style, <span className="text-purple-300">Powered by KONDA</span>
           </motion.p>
 
           <motion.div

@@ -5,6 +5,7 @@ import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import analysisRoutes from './routes/analysisRoutes.js';
 import productRoutes from './routes/productRoutes.js';
+import skinCareRoutes from './routes/skinCareRoutes.js';
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/analyze-tone', analysisRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/skin-care', skinCareRoutes);
 
 // Root route
 app.get('/', (req, res) => {

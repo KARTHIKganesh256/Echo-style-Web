@@ -23,14 +23,22 @@ const ProductsPage = () => {
 
   const loadSavedProducts = async () => {
     try {
-      if (user) {
-        const { data } = await authAPI.getProfile();
-        if (data.savedProducts && data.savedProducts.length > 0) {
-          setSavedProducts(new Set(data.savedProducts.map(id => id.toString())));
-        }
+      if (!user) {
+        console.log('No user logged in, skipping saved products load');
+        return;
+      }
+      
+      // Try to load saved products from user metadata
+      const savedProductsData = user?.user_metadata?.saved_products || [];
+      if (savedProductsData.length > 0) {
+        setSavedProducts(new Set(savedProductsData.map(id => id.toString())));
+        console.log('✅ Loaded saved products:', savedProductsData.length);
+      } else {
+        console.log('No saved products found');
       }
     } catch (error) {
       console.error('Failed to load saved products:', error);
+      // Don't throw - just continue without saved products
     }
   };
 
@@ -68,6 +76,10 @@ const ProductsPage = () => {
         setSavedProducts((prev) => new Set(prev).add(productId));
         console.log('✅ Product saved to favorites');
       }
+      
+      // Refresh user data to get updated saved products
+      const { refreshSession } = useAuthStore.getState();
+      await refreshSession();
     } catch (error) {
       console.error('❌ Failed to save/unsave product:', error);
       alert(error.response?.data?.message || 'Failed to save product. Please try again.');
@@ -203,15 +215,27 @@ const ProductsPage = () => {
                 whileHover={{ y: -10, scale: 1.02 }}
                 className="glass overflow-hidden card-hover"
               >
-                <div className="h-48 bg-gradient-to-br from-purple-500 to-pink-500 relative overflow-hidden">
+                <div className="h-48 bg-gradient-to-br from-purple-500 to-pink-500 relative overflow-hidden flex items-center justify-center">
                   <img
-                    src={product.imageUrl}
+                    src={product.image_url || product.imageUrl}
                     alt={product.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
+                      console.log('Image failed to load:', product.image_url || product.imageUrl);
                       e.target.style.display = 'none';
+                      // Show fallback content
+                      const fallback = document.createElement('div');
+                      fallback.className = 'w-full h-full flex items-center justify-center text-white text-6xl';
+                      fallback.textContent = '🛍️';
+                      e.target.parentNode.appendChild(fallback);
                     }}
                   />
+                  {/* Fallback icon if no image */}
+                  {!product.image_url && !product.imageUrl && (
+                    <div className="absolute inset-0 flex items-center justify-center text-white text-6xl">
+                      🛍️
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-6">
@@ -268,7 +292,7 @@ const ProductsPage = () => {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-white">${product.price}</span>
+                    <span className="text-2xl font-bold text-white">₹{product.price}</span>
                     <motion.button
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}

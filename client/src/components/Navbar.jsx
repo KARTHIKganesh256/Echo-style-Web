@@ -36,7 +36,15 @@ const Navbar = () => {
                     whileHover={{ scale: 1.05 }}
                     className="text-white hover:text-purple-200 transition-colors text-sm"
                   >
-                    Skin Analysis
+                    Color Analysis
+                  </motion.button>
+                </Link>
+                <Link to="/skin-care">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    className="text-white hover:text-purple-200 transition-colors text-sm"
+                  >
+                    Skin Care
                   </motion.button>
                 </Link>
                 <Link to="/upload">

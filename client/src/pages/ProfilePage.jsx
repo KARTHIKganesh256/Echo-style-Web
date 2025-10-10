@@ -5,7 +5,7 @@ import { supabase } from '../utils/supabase';
 import useAuthStore from '../store/useAuthStore';
 
 const ProfilePage = () => {
-  const { user, updateUser } = useAuthStore();
+  const { user, updateUser, refreshSession } = useAuthStore();
   const [savedProducts, setSavedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState(user?.preferences?.theme || 'light');
@@ -29,15 +29,21 @@ const ProfilePage = () => {
   const fetchProfile = async () => {
     setLoading(true);
     try {
-      const { data } = await authAPI.getProfile();
-      updateUser(data);
+      // Check if user is already loaded from auth store
+      if (!user) {
+        console.log('⚠️ No user in auth store, skipping profile fetch');
+        setLoading(false);
+        return;
+      }
       
-      console.log('📊 Profile data:', data);
-      console.log('💾 Saved product IDs:', data.savedProducts);
+      console.log('📊 Using user from auth store:', user.email);
       
-      // Fetch saved products
-      if (data.savedProducts && data.savedProducts.length > 0) {
-        const productPromises = data.savedProducts.map((id) =>
+      // Fetch saved products from user metadata
+      const savedProductIds = user.user_metadata?.saved_products || [];
+      console.log('💾 Saved product IDs:', savedProductIds);
+      
+      if (savedProductIds.length > 0) {
+        const productPromises = savedProductIds.map((id) =>
           productsAPI.getProductById(id).catch((err) => {
             console.error(`Failed to fetch product ${id}:`, err);
             return null;
@@ -86,6 +92,15 @@ const ProfilePage = () => {
     if (!displayName.trim()) return;
     
     try {
+      // Check for active session first
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error('No active session:', sessionError);
+        alert('Your session has expired. Please log in again.');
+        return;
+      }
+      
       const trimmedName = displayName.trim();
       console.log('Updating name to:', trimmedName);
       
@@ -132,28 +147,54 @@ const ProfilePage = () => {
     }
 
     setUploadingPhoto(true);
+    
     try {
-      // Convert to base64 for demo purposes
+      console.log('🔍 Checking authentication status...');
+      
+      // Try to refresh the session first
+      const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+      
+      if (sessionError || !session) {
+        console.error('❌ Session refresh failed:', sessionError);
+        
+        // Try getting existing session as fallback
+        const { data: existingSession } = await supabase.auth.getSession();
+        
+        if (!existingSession?.session) {
+          console.error('❌ No active session found');
+          alert('Your session has expired. Please refresh the page and try again.');
+          setUploadingPhoto(false);
+          return;
+        }
+        
+        console.log('✅ Using existing session');
+      } else {
+        console.log('✅ Session refreshed successfully');
+      }
+      
+      // Convert to base64
       const reader = new FileReader();
       reader.onload = async (e) => {
         try {
           const base64 = e.target.result;
-          console.log('Updating profile with photo...');
+          console.log('📤 Uploading profile photo...');
+          console.log('📊 Current user:', user?.email);
           
           // Update user metadata in Supabase
-          const { data, error } = await supabase.auth.updateUser({
+          const { data: updateData, error: updateError } = await supabase.auth.updateUser({
             data: { 
               profile_photo: base64,
-              name: displayName 
+              name: displayName,
+              saved_products: user?.user_metadata?.saved_products || []
             }
           });
           
-          if (error) {
-            console.error('Supabase error:', error);
-            throw new Error(error.message);
+          if (updateError) {
+            console.error('❌ Supabase update error:', updateError);
+            throw new Error(updateError.message || 'Failed to update profile');
           }
           
-          console.log('Profile updated successfully:', data);
+          console.log('✅ Profile updated successfully:', updateData?.user?.email);
           
           // Update local state
           updateUser({ 
@@ -164,18 +205,25 @@ const ProfilePage = () => {
             } 
           });
           
-          alert('Profile photo updated successfully!');
+          alert('✅ Profile photo updated successfully!');
         } catch (error) {
-          console.error('Failed to update photo:', error);
-          alert(`Failed to update photo: ${error.message}`);
+          console.error('❌ Failed to update photo:', error);
+          alert(`Failed to update photo: ${error.message || 'Unknown error'}`);
         } finally {
           setUploadingPhoto(false);
         }
       };
+      
+      reader.onerror = () => {
+        console.error('❌ Failed to read file');
+        alert('Failed to read image file. Please try again.');
+        setUploadingPhoto(false);
+      };
+      
       reader.readAsDataURL(file);
     } catch (error) {
-      console.error('Failed to process photo:', error);
-      alert('Failed to process photo. Please try again.');
+      console.error('❌ Failed to process photo:', error);
+      alert(`Failed to process photo: ${error.message || 'Unknown error'}`);
       setUploadingPhoto(false);
     }
   };
@@ -298,16 +346,35 @@ const ProfilePage = () => {
               </div>
             </div>
             
-            {/* Theme Toggle */}
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={handleThemeToggle}
-              className="p-4 rounded-full bg-white bg-opacity-20 text-2xl hover:bg-opacity-30 transition-all"
-              title="Toggle theme"
-            >
-              {theme === 'light' ? '🌙' : '☀️'}
-            </motion.button>
+            {/* Session Refresh & Theme Toggle */}
+            <div className="flex gap-2">
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={async () => {
+                  try {
+                    await refreshSession();
+                    alert('✅ Session refreshed! Try uploading your photo now.');
+                  } catch (error) {
+                    alert('❌ Session refresh failed. Please log out and log in again.');
+                  }
+                }}
+                className="p-4 rounded-full bg-green-500 bg-opacity-20 text-2xl hover:bg-opacity-30 transition-all"
+                title="Refresh session"
+              >
+                🔄
+              </motion.button>
+              
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handleThemeToggle}
+                className="p-4 rounded-full bg-white bg-opacity-20 text-2xl hover:bg-opacity-30 transition-all"
+                title="Toggle theme"
+              >
+                {theme === 'light' ? '🌙' : '☀️'}
+              </motion.button>
+            </div>
           </div>
 
           {user?.skinAnalysis?.season && user.skinAnalysis.season !== '' && (

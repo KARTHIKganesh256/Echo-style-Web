@@ -6,6 +6,7 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import AnalyzePage from './pages/AnalyzePage';
+import SkinCarePage from './pages/SkinCarePage';
 import ProductsPage from './pages/ProductsPage';
 import ProfilePage from './pages/ProfilePage';
 import UploadScreen from './pages/UploadScreen';
@@ -31,6 +32,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AnalyzePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/skin-care"
+              element={
+                <ProtectedRoute>
+                  <SkinCarePage />
                 </ProtectedRoute>
               }
             />

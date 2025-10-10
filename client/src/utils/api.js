@@ -81,9 +81,29 @@ export const authAPI = {
   },
   
   getProfile: async () => {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error) throw new Error(error.message);
-    return { data: user };
+    try {
+      // First check if there's an active session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        throw new Error('Auth session missing!');
+      }
+      
+      if (!session) {
+        console.warn('No active session found');
+        throw new Error('Auth session missing!');
+      }
+      
+      // Get user data
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) throw new Error(error.message);
+      
+      return { data: user };
+    } catch (err) {
+      console.error('getProfile error:', err);
+      throw err;
+    }
   },
   
   updateProfile: async (userData) => {
@@ -93,10 +113,154 @@ export const authAPI = {
   },
 };
 
-// Analysis API
+// Analysis API - Client-side analysis
 export const analysisAPI = {
-  analyzeTone: (data) => api.post('/analyze-tone', data),
-  getSeasonPalette: (season) => api.get(`/analyze-tone/palette/${season}`),
+  analyzeTone: async (data) => {
+    console.log('🔍 Analyzing skin tone:', data);
+    
+    // Client-side skin tone analysis logic
+    const { undertone, depth } = data;
+    
+    // Determine season based on undertone and depth
+    let season = '';
+    let palette = {};
+    
+    if (undertone === 'Warm') {
+      if (depth === 'Fair' || depth === 'Light') {
+        season = 'Spring';
+        palette = {
+          primary: '#FFB347',
+          secondary: '#FF6B6B',
+          tertiary: '#4ECDC4',
+          quaternary: '#45B7D1',
+          characteristics: ['Fresh', 'Light', 'Warm', 'Bright']
+        };
+      } else if (depth === 'Medium' || depth === 'Olive') {
+        season = 'Autumn';
+        palette = {
+          primary: '#D2691E',
+          secondary: '#CD853F',
+          tertiary: '#8B4513',
+          quaternary: '#A0522D',
+          characteristics: ['Warm', 'Rich', 'Deep', 'Earthy']
+        };
+      } else {
+        season = 'Autumn';
+        palette = {
+          primary: '#8B4513',
+          secondary: '#A0522D',
+          tertiary: '#CD853F',
+          quaternary: '#D2691E',
+          characteristics: ['Deep', 'Rich', 'Warm', 'Earthy']
+        };
+      }
+    } else if (undertone === 'Cool') {
+      if (depth === 'Fair' || depth === 'Light') {
+        season = 'Summer';
+        palette = {
+          primary: '#87CEEB',
+          secondary: '#DDA0DD',
+          tertiary: '#F0E68C',
+          quaternary: '#FFB6C1',
+          characteristics: ['Cool', 'Soft', 'Light', 'Muted']
+        };
+      } else if (depth === 'Medium' || depth === 'Olive') {
+        season = 'Winter';
+        palette = {
+          primary: '#4169E1',
+          secondary: '#8A2BE2',
+          tertiary: '#DC143C',
+          quaternary: '#000080',
+          characteristics: ['Cool', 'Deep', 'Bright', 'Clear']
+        };
+      } else {
+        season = 'Winter';
+        palette = {
+          primary: '#000080',
+          secondary: '#DC143C',
+          tertiary: '#8A2BE2',
+          quaternary: '#4169E1',
+          characteristics: ['Deep', 'Cool', 'Bright', 'Clear']
+        };
+      }
+    } else {
+      // Neutral undertone
+      season = 'Neutral';
+      palette = {
+        primary: '#808080',
+        secondary: '#A9A9A9',
+        tertiary: '#D3D3D3',
+        quaternary: '#F5F5F5',
+        characteristics: ['Balanced', 'Versatile', 'Universal', 'Adaptable']
+      };
+    }
+    
+    const result = {
+      season,
+      undertone,
+      depth,
+      palette: {
+        ...palette,
+        colors: [palette.primary, palette.secondary, palette.tertiary, palette.quaternary],
+        description: `Your ${season} palette features ${palette.characteristics.join(', ').toLowerCase()} colors that complement your ${undertone.toLowerCase()} undertone and ${depth.toLowerCase()} skin depth.`
+      },
+      confidence: 0.85,
+      recommendations: [
+        `Your ${season} palette works best with ${palette.characteristics.join(', ').toLowerCase()} colors`,
+        `Avoid colors that clash with your ${undertone.toLowerCase()} undertone`,
+        `Focus on ${season.toLowerCase()} season colors for the most flattering look`
+      ]
+    };
+    
+    console.log('✅ Analysis result:', result);
+    
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    return { data: result };
+  },
+  
+  getSeasonPalette: (season) => {
+    const palettes = {
+      Spring: {
+        primary: '#FFB347',
+        secondary: '#FF6B6B',
+        tertiary: '#4ECDC4',
+        quaternary: '#45B7D1',
+        characteristics: ['Fresh', 'Light', 'Warm', 'Bright']
+      },
+      Summer: {
+        primary: '#87CEEB',
+        secondary: '#DDA0DD',
+        tertiary: '#F0E68C',
+        quaternary: '#FFB6C1',
+        characteristics: ['Cool', 'Soft', 'Light', 'Muted']
+      },
+      Autumn: {
+        primary: '#D2691E',
+        secondary: '#CD853F',
+        tertiary: '#8B4513',
+        quaternary: '#A0522D',
+        characteristics: ['Warm', 'Rich', 'Deep', 'Earthy']
+      },
+      Winter: {
+        primary: '#4169E1',
+        secondary: '#8A2BE2',
+        tertiary: '#DC143C',
+        quaternary: '#000080',
+        characteristics: ['Cool', 'Deep', 'Bright', 'Clear']
+      },
+      Neutral: {
+        primary: '#808080',
+        secondary: '#A9A9A9',
+        tertiary: '#D3D3D3',
+        quaternary: '#F5F5F5',
+        characteristics: ['Balanced', 'Versatile', 'Universal', 'Adaptable']
+      }
+    };
+    
+    return { data: palettes[season] || palettes.Neutral };
+  }
 };
 
 // Products API - Using Supabase
@@ -136,6 +300,11 @@ export const productsAPI = {
       
       console.log('✅ Products fetched successfully:', data?.length || 0, 'items');
       console.log('📦 Sample product:', data?.[0]);
+      
+      // Log image URLs to debug
+      data?.forEach((product, index) => {
+        console.log(`🖼️ Product ${index + 1} image URL:`, product.image_url);
+      });
       
       return { data: data || [] };
     } catch (err) {
@@ -198,10 +367,28 @@ export const productsAPI = {
   
   saveProduct: async (id) => {
     try {
-      const user = await supabase.auth.getUser();
-      if (!user.data.user) throw new Error('Not authenticated');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
       
-      // For now, just return success - you can implement saved products table later
+      // Get current saved products from user metadata
+      const currentSaved = user.user_metadata?.saved_products || [];
+      
+      // Add new product if not already saved
+      if (!currentSaved.includes(id)) {
+        const updatedSaved = [...currentSaved, id];
+        
+        // Update user metadata
+        const { error } = await supabase.auth.updateUser({
+          data: {
+            ...user.user_metadata,
+            saved_products: updatedSaved
+          }
+        });
+        
+        if (error) throw error;
+        console.log('✅ Product saved to user metadata');
+      }
+      
       return { data: { success: true } };
     } catch (err) {
       console.error('Error saving product:', err);
@@ -211,10 +398,26 @@ export const productsAPI = {
   
   unsaveProduct: async (id) => {
     try {
-      const user = await supabase.auth.getUser();
-      if (!user.data.user) throw new Error('Not authenticated');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
       
-      // For now, just return success - you can implement saved products table later
+      // Get current saved products from user metadata
+      const currentSaved = user.user_metadata?.saved_products || [];
+      
+      // Remove product
+      const updatedSaved = currentSaved.filter(productId => productId !== id);
+      
+      // Update user metadata
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          ...user.user_metadata,
+          saved_products: updatedSaved
+        }
+      });
+      
+      if (error) throw error;
+      console.log('✅ Product removed from user metadata');
+      
       return { data: { success: true } };
     } catch (err) {
       console.error('Error unsaving product:', err);

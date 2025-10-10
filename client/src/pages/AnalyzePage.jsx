@@ -14,30 +14,66 @@ const AnalyzePage = () => {
   const { setSeason } = useSeasonStore();
 
   const handleAnalyze = async () => {
+    console.log('🔍 Starting analysis with:', { undertone, depth });
+    
+    if (!undertone || !depth) {
+      console.error('❌ Missing data:', { undertone, depth });
+      alert('Please complete both steps before getting results.');
+      return;
+    }
+    
     setLoading(true);
     try {
-      const { data } = await analysisAPI.analyzeTone({ undertone, depth });
-      setResult(data);
-      setSeason(data.season, data);
+      console.log('📡 Calling analysisAPI...');
+      const response = await analysisAPI.analyzeTone({ undertone, depth });
+      console.log('✅ Analysis complete:', response);
+      
+      if (!response || !response.data) {
+        throw new Error('No data received from analysis');
+      }
+      
+      console.log('💾 Setting result state...');
+      setResult(response.data);
+      
+      console.log('🎨 Setting season store...');
+      setSeason(response.data.season, response.data);
       
       // Update user profile
-      await authAPI.updateProfile({
-        skinAnalysis: {
-          undertone: data.undertone,
-          depth: data.depth,
-          season: data.season,
-        },
-      });
+      console.log('💾 Updating user profile...');
+      try {
+        await authAPI.updateProfile({
+          data: {
+            skinAnalysis: {
+              undertone: response.data.undertone,
+              depth: response.data.depth,
+              season: response.data.season,
+            },
+          },
+        });
+        console.log('✅ Profile updated successfully');
+      } catch (profileError) {
+        console.warn('⚠️ Profile update failed (non-critical):', profileError);
+      }
       
       updateUser({
         skinAnalysis: {
-          undertone: data.undertone,
-          depth: data.depth,
-          season: data.season,
+          undertone: response.data.undertone,
+          depth: response.data.depth,
+          season: response.data.season,
         },
       });
+      
+      console.log('🎉 Analysis and profile update complete!');
+      console.log('📊 Current result state:', response.data);
     } catch (error) {
-      console.error('Analysis failed:', error);
+      console.error('❌ Analysis failed:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        undertone,
+        depth
+      });
+      alert(`Analysis failed: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -157,17 +193,33 @@ const AnalyzePage = () => {
                   </div>
 
                   {depth && (
-                    <motion.button
+                    <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={handleAnalyze}
-                      disabled={loading}
-                      className="w-full btn-primary bg-white text-purple-600 btn-glow text-xl disabled:opacity-50"
                     >
-                      {loading ? 'Analyzing...' : 'Get My Results'}
-                    </motion.button>
+                      <div className="mb-4 p-4 bg-white bg-opacity-10 rounded-lg">
+                        <h4 className="text-white font-semibold mb-2">Your Selections:</h4>
+                        <div className="flex gap-4 text-purple-200">
+                          <span>Undertone: <span className="text-white font-bold">{undertone || 'Not selected'}</span></span>
+                          <span>Depth: <span className="text-white font-bold">{depth}</span></span>
+                        </div>
+                        {process.env.NODE_ENV === 'development' && (
+                          <div className="mt-2 text-xs text-purple-300">
+                            Debug: Result={result ? 'Set' : 'Null'}, Loading={loading ? 'Yes' : 'No'}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handleAnalyze}
+                        disabled={loading || !undertone || !depth}
+                        className="w-full btn-primary bg-white text-purple-600 btn-glow text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {loading ? 'Analyzing...' : 'Get My Results'}
+                      </motion.button>
+                    </motion.div>
                   )}
                 </div>
               )}

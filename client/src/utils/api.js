@@ -1,35 +1,8 @@
-import axios from 'axios';
 import { supabase } from './supabase';
 
-// Supabase configuration
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const USE_SUPABASE = !!SUPABASE_URL;
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add token to requests
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('auth-storage');
-    if (token) {
-      const authData = JSON.parse(token);
-      if (authData.state?.token) {
-        config.headers.Authorization = `Bearer ${authData.state.token}`;
-      }
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+// Supabase-only configuration
+console.log('🔧 Using Supabase-only architecture');
+console.log('🔗 Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
 
 // Auth API - Using Supabase Password Auth
 export const authAPI = {
@@ -825,4 +798,5 @@ const generateLifestyleTips = (lifestyle) => {
   return tips;
 };
 
-export default api;
+// Export supabase for direct access if needed
+export default supabase;

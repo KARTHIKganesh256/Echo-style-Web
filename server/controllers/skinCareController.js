@@ -3,7 +3,7 @@ import SkinCare from '../models/SkinCare.js';
 // Analyze skin care questionnaire and generate recommendations
 const analyzeSkinCare = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id;
     const {
       basicInfo,
       skinType,
@@ -55,7 +55,7 @@ const analyzeSkinCare = async (req, res) => {
 // Get user's skin care analysis
 const getSkinCareAnalysis = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id;
 
     const skinCareAnalysis = await SkinCare.findOne({ userId })
       .populate('userId', 'name email');
@@ -79,7 +79,7 @@ const getSkinCareAnalysis = async (req, res) => {
 // Update skin care analysis
 const updateSkinCareAnalysis = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id;
     const {
       basicInfo,
       skinType,
@@ -124,7 +124,7 @@ const updateSkinCareAnalysis = async (req, res) => {
 // Delete skin care analysis
 const deleteSkinCareAnalysis = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id;
 
     await SkinCare.findOneAndDelete({ userId });
 

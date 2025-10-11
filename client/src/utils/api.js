@@ -343,24 +343,20 @@ export const productsAPI = {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
       
-      // Get current saved products from user metadata
-      const currentSaved = user.user_metadata?.saved_products || [];
-      
-      // Add new product if not already saved
-      if (!currentSaved.includes(id)) {
-        const updatedSaved = [...currentSaved, id];
-        
-        // Update user metadata
-        const { error } = await supabase.auth.updateUser({
-          data: {
-            ...user.user_metadata,
-            saved_products: updatedSaved
-          }
+      // Save to saved_products table
+      const { error } = await supabase
+        .from('saved_products')
+        .insert({
+          user_id: user.id,
+          product_id: id
         });
-        
-        if (error) throw error;
-        console.log('✅ Product saved to user metadata');
+      
+      if (error && error.code !== '23505') { // 23505 = duplicate key error
+        console.error('Database save error:', error);
+        throw error;
       }
+      
+      console.log('✅ Product saved to database');
       
       return { data: { success: true } };
     } catch (err) {
@@ -374,22 +370,19 @@ export const productsAPI = {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
       
-      // Get current saved products from user metadata
-      const currentSaved = user.user_metadata?.saved_products || [];
+      // Remove from saved_products table
+      const { error } = await supabase
+        .from('saved_products')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('product_id', id);
       
-      // Remove product
-      const updatedSaved = currentSaved.filter(productId => productId !== id);
+      if (error) {
+        console.error('Database delete error:', error);
+        throw error;
+      }
       
-      // Update user metadata
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          ...user.user_metadata,
-          saved_products: updatedSaved
-        }
-      });
-      
-      if (error) throw error;
-      console.log('✅ Product removed from user metadata');
+      console.log('✅ Product removed from database');
       
       return { data: { success: true } };
     } catch (err) {
@@ -397,76 +390,119 @@ export const productsAPI = {
       throw err;
     }
   },
+
+  // Get saved products
+  getSavedProducts: async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      
+      // Get saved product IDs from database
+      const { data: savedProducts, error } = await supabase
+        .from('saved_products')
+        .select('product_id')
+        .eq('user_id', user.id);
+      
+      if (error) {
+        console.error('Database fetch error:', error);
+        throw error;
+      }
+      
+      const productIds = savedProducts.map(item => item.product_id);
+      
+      // Get full product details
+      if (productIds.length > 0) {
+        const { data: products, error: productsError } = await supabase
+          .from('products')
+          .select('*')
+          .in('id', productIds);
+        
+        if (productsError) {
+          console.error('Products fetch error:', productsError);
+          throw productsError;
+        }
+        
+        return { data: products || [] };
+      }
+      
+      return { data: [] };
+    } catch (err) {
+      console.error('Error fetching saved products:', err);
+      throw err;
+    }
+  },
 };
 
-// Skin Care API - Using Supabase (stored in user metadata)
+// Skin Care API - Using Supabase Database Tables
 export const skinCareAPI = {
   // Analyze and save skin care data
   analyzeSkinCare: async (formData) => {
     try {
       console.log('🔍 Analyzing skin care data...');
       
-      // Check if we have a current session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
       
-      if (sessionError) {
-        console.error('Session error:', sessionError);
-        throw new Error('Authentication error: ' + sessionError.message);
-      }
-      
-      if (!session || !session.user) {
-        console.error('No active session found');
+      if (userError || !user) {
+        console.error('Authentication error:', userError);
         throw new Error('Not authenticated - please log in again');
       }
       
-      const user = session.user;
       console.log('✅ User authenticated:', user.email);
-      
-      // Test Supabase connection
-      console.log('🔍 Testing Supabase connection...');
-      const { data: testData, error: testError } = await supabase.from('products').select('count').limit(1);
-      if (testError) {
-        console.error('Supabase connection test failed:', testError);
-        throw new Error('Database connection error: ' + testError.message);
-      }
-      console.log('✅ Supabase connection verified');
       
       // Generate analysis based on form data
       const analysis = generateSkinCareAnalysis(formData);
       
-      // Create skin care analysis object
-      const skinCareAnalysis = {
+      // Save to Supabase database table
+      console.log('🔍 Saving analysis to Supabase database...');
+      const { data, error } = await supabase
+        .from('skin_care_analyses')
+        .upsert({
+          user_id: user.id,
+          basic_info: formData.basicInfo,
+          skin_type: formData.skinType,
+          skin_concerns: formData.skinConcerns,
+          lifestyle: formData.lifestyle,
+          analysis: analysis,
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Database save error:', error);
+        // Fallback to localStorage
+        const fallbackData = {
+          ...formData,
+          analysis,
+          completedAt: new Date().toISOString()
+        };
+        localStorage.setItem('skin_care_analysis', JSON.stringify(fallbackData));
+        console.log('✅ Saved to localStorage as fallback');
+        return { data: { analysis: fallbackData } };
+      }
+      
+      console.log('✅ Skin care analysis saved to database successfully');
+      
+      // Also save to analysis history
+      await supabase
+        .from('analysis_history')
+        .insert({
+          user_id: user.id,
+          analysis_type: 'skin_care',
+          analysis_data: {
+            ...formData,
+            analysis
+          }
+        });
+      
+      const result = {
         ...formData,
         analysis,
         completedAt: new Date().toISOString()
       };
       
-      // Try to save to user metadata first
-      console.log('🔍 Saving analysis to user metadata...');
-      try {
-        const { error } = await supabase.auth.updateUser({
-          data: {
-            ...user.user_metadata,
-            skin_care_analysis: skinCareAnalysis
-          }
-        });
-        
-        if (error) {
-          console.error('Error saving to user metadata:', error);
-          // Fallback: store in localStorage
-          console.log('🔍 Falling back to localStorage...');
-          localStorage.setItem('skin_care_analysis', JSON.stringify(skinCareAnalysis));
-          console.log('✅ Skin care analysis saved to localStorage');
-        } else {
-          console.log('✅ Skin care analysis saved to user metadata successfully');
-        }
-      } catch (metadataError) {
-        console.error('Metadata update failed, using localStorage:', metadataError);
-        localStorage.setItem('skin_care_analysis', JSON.stringify(skinCareAnalysis));
-        console.log('✅ Skin care analysis saved to localStorage');
-      }
-      
-      return { data: { analysis: skinCareAnalysis } };
+      return { data: { analysis: result } };
     } catch (err) {
       console.error('❌ Error analyzing skin care:', err);
       throw err;
@@ -478,47 +514,70 @@ export const skinCareAPI = {
     try {
       console.log('🔍 Fetching skin care analysis...');
       
-      // Check if we have a current session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
       
-      if (sessionError) {
-        console.error('Session error:', sessionError);
-        throw new Error('Authentication error: ' + sessionError.message);
-      }
-      
-      if (!session || !session.user) {
-        console.error('No active session found');
+      if (userError || !user) {
+        console.error('Authentication error:', userError);
         throw new Error('Not authenticated - please log in again');
       }
       
-      const user = session.user;
       console.log('✅ User authenticated:', user.email);
       
-      // Try to get from user metadata first
-      let skinCareAnalysis = user.user_metadata?.skin_care_analysis;
+      // Get from Supabase database table
+      const { data, error } = await supabase
+        .from('skin_care_analyses')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
       
-      // Fallback to localStorage if not found in metadata
-      if (!skinCareAnalysis) {
-        console.log('🔍 Checking localStorage for analysis...');
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+        console.error('Database fetch error:', error);
+        // Fallback to localStorage
         const localAnalysis = localStorage.getItem('skin_care_analysis');
         if (localAnalysis) {
           try {
-            skinCareAnalysis = JSON.parse(localAnalysis);
-            console.log('✅ Skin care analysis retrieved from localStorage');
+            const parsed = JSON.parse(localAnalysis);
+            console.log('✅ Retrieved from localStorage fallback');
+            return { data: parsed };
           } catch (parseError) {
             console.error('Error parsing localStorage data:', parseError);
           }
         }
-      } else {
-        console.log('✅ Skin care analysis retrieved from user metadata');
-      }
-      
-      if (!skinCareAnalysis) {
-        console.log('No skin care analysis found');
         return { data: null };
       }
       
-      return { data: skinCareAnalysis };
+      if (!data) {
+        console.log('No skin care analysis found in database');
+        // Check localStorage as fallback
+        const localAnalysis = localStorage.getItem('skin_care_analysis');
+        if (localAnalysis) {
+          try {
+            const parsed = JSON.parse(localAnalysis);
+            console.log('✅ Retrieved from localStorage fallback');
+            return { data: parsed };
+          } catch (parseError) {
+            console.error('Error parsing localStorage data:', parseError);
+          }
+        }
+        return { data: null };
+      }
+      
+      console.log('✅ Skin care analysis retrieved from database');
+      
+      // Format the data to match expected structure
+      const formattedData = {
+        basicInfo: data.basic_info,
+        skinType: data.skin_type,
+        skinConcerns: data.skin_concerns,
+        lifestyle: data.lifestyle,
+        analysis: data.analysis,
+        completedAt: data.created_at
+      };
+      
+      return { data: formattedData };
     } catch (err) {
       console.error('❌ Error fetching skin care analysis:', err);
       throw err;
@@ -528,30 +587,31 @@ export const skinCareAPI = {
   // Delete skin care analysis
   deleteSkinCareAnalysis: async () => {
     try {
-      // Check if we have a current session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
       
-      if (sessionError) {
-        console.error('Session error:', sessionError);
-        throw new Error('Authentication error: ' + sessionError.message);
-      }
-      
-      if (!session || !session.user) {
-        console.error('No active session found');
+      if (userError || !user) {
+        console.error('Authentication error:', userError);
         throw new Error('Not authenticated - please log in again');
       }
       
-      const user = session.user;
+      console.log('✅ User authenticated:', user.email);
       
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          ...user.user_metadata,
-          skin_care_analysis: null
-        }
-      });
+      // Delete from Supabase database
+      const { error } = await supabase
+        .from('skin_care_analyses')
+        .delete()
+        .eq('user_id', user.id);
       
-      if (error) throw error;
-      console.log('✅ Skin care analysis deleted');
+      if (error) {
+        console.error('Database delete error:', error);
+        throw error;
+      }
+      
+      // Also clear localStorage fallback
+      localStorage.removeItem('skin_care_analysis');
+      
+      console.log('✅ Skin care analysis deleted from database');
       
       return { data: { success: true } };
     } catch (err) {

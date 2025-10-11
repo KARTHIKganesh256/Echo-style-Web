@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { api } from '../utils/api';
+import api from '../utils/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import SkinCareResults from '../components/SkinCareResults';
 

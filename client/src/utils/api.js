@@ -426,4 +426,403 @@ export const productsAPI = {
   },
 };
 
+// Skin Care API - Using Supabase (stored in user metadata)
+export const skinCareAPI = {
+  // Analyze and save skin care data
+  analyzeSkinCare: async (formData) => {
+    try {
+      console.log('🔍 Analyzing skin care data...');
+      
+      // Check if we have a current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        throw new Error('Authentication error: ' + sessionError.message);
+      }
+      
+      if (!session || !session.user) {
+        console.error('No active session found');
+        throw new Error('Not authenticated - please log in again');
+      }
+      
+      const user = session.user;
+      console.log('✅ User authenticated:', user.email);
+      
+      // Test Supabase connection
+      console.log('🔍 Testing Supabase connection...');
+      const { data: testData, error: testError } = await supabase.from('products').select('count').limit(1);
+      if (testError) {
+        console.error('Supabase connection test failed:', testError);
+        throw new Error('Database connection error: ' + testError.message);
+      }
+      console.log('✅ Supabase connection verified');
+      
+      // Generate analysis based on form data
+      const analysis = generateSkinCareAnalysis(formData);
+      
+      // Create skin care analysis object
+      const skinCareAnalysis = {
+        ...formData,
+        analysis,
+        completedAt: new Date().toISOString()
+      };
+      
+      // Try to save to user metadata first
+      console.log('🔍 Saving analysis to user metadata...');
+      try {
+        const { error } = await supabase.auth.updateUser({
+          data: {
+            ...user.user_metadata,
+            skin_care_analysis: skinCareAnalysis
+          }
+        });
+        
+        if (error) {
+          console.error('Error saving to user metadata:', error);
+          // Fallback: store in localStorage
+          console.log('🔍 Falling back to localStorage...');
+          localStorage.setItem('skin_care_analysis', JSON.stringify(skinCareAnalysis));
+          console.log('✅ Skin care analysis saved to localStorage');
+        } else {
+          console.log('✅ Skin care analysis saved to user metadata successfully');
+        }
+      } catch (metadataError) {
+        console.error('Metadata update failed, using localStorage:', metadataError);
+        localStorage.setItem('skin_care_analysis', JSON.stringify(skinCareAnalysis));
+        console.log('✅ Skin care analysis saved to localStorage');
+      }
+      
+      return { data: { analysis: skinCareAnalysis } };
+    } catch (err) {
+      console.error('❌ Error analyzing skin care:', err);
+      throw err;
+    }
+  },
+  
+  // Get existing skin care analysis
+  getSkinCareAnalysis: async () => {
+    try {
+      console.log('🔍 Fetching skin care analysis...');
+      
+      // Check if we have a current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        throw new Error('Authentication error: ' + sessionError.message);
+      }
+      
+      if (!session || !session.user) {
+        console.error('No active session found');
+        throw new Error('Not authenticated - please log in again');
+      }
+      
+      const user = session.user;
+      console.log('✅ User authenticated:', user.email);
+      
+      // Try to get from user metadata first
+      let skinCareAnalysis = user.user_metadata?.skin_care_analysis;
+      
+      // Fallback to localStorage if not found in metadata
+      if (!skinCareAnalysis) {
+        console.log('🔍 Checking localStorage for analysis...');
+        const localAnalysis = localStorage.getItem('skin_care_analysis');
+        if (localAnalysis) {
+          try {
+            skinCareAnalysis = JSON.parse(localAnalysis);
+            console.log('✅ Skin care analysis retrieved from localStorage');
+          } catch (parseError) {
+            console.error('Error parsing localStorage data:', parseError);
+          }
+        }
+      } else {
+        console.log('✅ Skin care analysis retrieved from user metadata');
+      }
+      
+      if (!skinCareAnalysis) {
+        console.log('No skin care analysis found');
+        return { data: null };
+      }
+      
+      return { data: skinCareAnalysis };
+    } catch (err) {
+      console.error('❌ Error fetching skin care analysis:', err);
+      throw err;
+    }
+  },
+  
+  // Delete skin care analysis
+  deleteSkinCareAnalysis: async () => {
+    try {
+      // Check if we have a current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        throw new Error('Authentication error: ' + sessionError.message);
+      }
+      
+      if (!session || !session.user) {
+        console.error('No active session found');
+        throw new Error('Not authenticated - please log in again');
+      }
+      
+      const user = session.user;
+      
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          ...user.user_metadata,
+          skin_care_analysis: null
+        }
+      });
+      
+      if (error) throw error;
+      console.log('✅ Skin care analysis deleted');
+      
+      return { data: { success: true } };
+    } catch (err) {
+      console.error('❌ Error deleting skin care analysis:', err);
+      throw err;
+    }
+  }
+};
+
+// Helper function to generate skin care analysis
+const generateSkinCareAnalysis = (data) => {
+  const { basicInfo, skinType, skinConcerns, lifestyle } = data;
+  
+  // Determine primary concerns (limit to top 2-3)
+  const primaryConcerns = skinConcerns.mainConcerns.slice(0, 3);
+  
+  // Generate routines based on skin type and concerns
+  const routines = generateRoutines(skinType.type, skinConcerns.mainConcerns, lifestyle);
+  
+  // Generate ingredients recommendations
+  const ingredients = generateIngredientRecommendations(skinType.type, skinConcerns.mainConcerns, skinConcerns.allergies);
+  
+  // Generate lifestyle tips
+  const lifestyleTips = generateLifestyleTips(lifestyle);
+  
+  return {
+    skinProfile: {
+      skinType: skinType.type,
+      primaryConcerns,
+      keyFactors: {
+        age: basicInfo.ageRange,
+        sunExposure: lifestyle.sunExposure,
+        stressLevel: lifestyle.stressLevel,
+        sleepQuality: lifestyle.sleepQuality
+      }
+    },
+    morningRoutine: routines.morning,
+    eveningRoutine: routines.evening,
+    beneficialIngredients: ingredients.beneficial,
+    ingredientsToAvoid: ingredients.avoid,
+    weeklyTreatments: routines.weekly,
+    lifestyleTips
+  };
+};
+
+// Generate skincare routines
+const generateRoutines = (skinType, concerns, lifestyle) => {
+  const routines = {
+    morning: [],
+    evening: [],
+    weekly: []
+  };
+  
+  // Base routine based on skin type
+  switch (skinType) {
+    case 'Dry':
+      routines.morning = [
+        'Creamy, hydrating cleanser',
+        'Hyaluronic acid serum',
+        'Rich moisturizer with ceramides',
+        'Hydrating SPF 30+'
+      ];
+      routines.evening = [
+        'Gentle milk cleanser',
+        'Peptide or vitamin E serum',
+        'Occlusive moisturizer or face oil',
+        'Overnight sleeping mask 2x/week'
+      ];
+      break;
+    
+    case 'Oily':
+      routines.morning = [
+        'Foaming gel cleanser',
+        'Niacinamide serum',
+        'Lightweight, oil-free moisturizer',
+        'Mattifying SPF 30+'
+      ];
+      routines.evening = [
+        'Salicylic acid cleanser',
+        'Retinol serum (start with low %)',
+        'Light moisturizer or gel',
+        'Clay mask 1-2x/week'
+      ];
+      break;
+    
+    case 'Combination':
+      routines.morning = [
+        'Gentle gel cleanser',
+        'Hyaluronic acid serum',
+        'Light moisturizer (heavier on dry areas)',
+        'Broad spectrum SPF 30+'
+      ];
+      routines.evening = [
+        'Double cleanse (oil + gentle cleanser)',
+        'Vitamin C serum',
+        'Balanced moisturizer',
+        'Spot treatment for oily areas'
+      ];
+      break;
+    
+    case 'Sensitive':
+      routines.morning = [
+        'Hypoallergenic cream cleanser',
+        'Soothing serum (chamomile/aloe)',
+        'Fragrance-free moisturizer',
+        'Mineral SPF 30+'
+      ];
+      routines.evening = [
+        'Gentle, fragrance-free cleanser',
+        'Calming serum',
+        'Barrier repair moisturizer',
+        'Cool compress for redness'
+      ];
+      break;
+    
+    case 'Normal':
+      routines.morning = [
+        'Gentle cream or gel cleanser',
+        'Antioxidant serum (vitamin C)',
+        'Light moisturizer',
+        'Broad spectrum SPF 30+'
+      ];
+      routines.evening = [
+        'Gentle cleanser',
+        'Retinol or peptide serum',
+        'Moisturizer with ceramides',
+        'Weekly exfoliant'
+      ];
+      break;
+  }
+  
+  // Add treatments based on concerns
+  if (concerns.includes('Acne/Breakouts')) {
+    routines.weekly.push('Salicylic acid treatment 2-3x/week');
+  }
+  if (concerns.includes('Fine lines/Wrinkles')) {
+    routines.weekly.push('Retinol treatment 2-3x/week');
+  }
+  if (concerns.includes('Dullness')) {
+    routines.weekly.push('Gentle exfoliant 1-2x/week');
+  }
+  if (concerns.includes('Dark spots/Hyperpigmentation')) {
+    routines.weekly.push('Vitamin C treatment daily');
+  }
+  
+  // Add lifestyle-based treatments
+  if (lifestyle.stressLevel === 'High' || lifestyle.stressLevel === 'Very High') {
+    routines.weekly.push('Relaxing face mask with calming ingredients');
+  }
+  if (lifestyle.sleepQuality === 'Poor' || lifestyle.sleepQuality === 'Fair') {
+    routines.evening.push('Overnight repair treatment');
+  }
+  
+  return routines;
+};
+
+// Generate ingredient recommendations
+const generateIngredientRecommendations = (skinType, concerns, allergies) => {
+  const ingredients = {
+    beneficial: [],
+    avoid: []
+  };
+  
+  // Base beneficial ingredients by skin type
+  switch (skinType) {
+    case 'Dry':
+      ingredients.beneficial = ['Hyaluronic Acid', 'Ceramides', 'Glycerin', 'Squalane', 'Shea Butter'];
+      ingredients.avoid = ['Alcohol', 'Strong fragrances', 'Harsh sulfates', 'Retinol (high %)'];
+      break;
+    
+    case 'Oily':
+      ingredients.beneficial = ['Niacinamide', 'Salicylic Acid', 'Tea Tree Oil', 'Clay', 'Witch Hazel'];
+      ingredients.avoid = ['Heavy oils', 'Comedogenic ingredients', 'Thick creams'];
+      break;
+    
+    case 'Combination':
+      ingredients.beneficial = ['Hyaluronic Acid', 'Niacinamide', 'Vitamin C', 'Ceramides'];
+      ingredients.avoid = ['Heavy oils on T-zone', 'Over-drying ingredients'];
+      break;
+    
+    case 'Sensitive':
+      ingredients.beneficial = ['Aloe Vera', 'Chamomile', 'Oatmeal', 'Hyaluronic Acid', 'Ceramides'];
+      ingredients.avoid = ['Fragrances', 'Alcohol', 'Harsh acids', 'Essential oils'];
+      break;
+    
+    case 'Normal':
+      ingredients.beneficial = ['Vitamin C', 'Retinol', 'Hyaluronic Acid', 'Peptides', 'Antioxidants'];
+      ingredients.avoid = ['Over-exfoliation', 'Too many active ingredients'];
+      break;
+  }
+  
+  // Add concern-specific ingredients
+  if (concerns.includes('Acne/Breakouts')) {
+    ingredients.beneficial.push('Benzoyl Peroxide', 'Azelaic Acid');
+  }
+  if (concerns.includes('Fine lines/Wrinkles')) {
+    ingredients.beneficial.push('Retinol', 'Peptides', 'Vitamin C');
+  }
+  if (concerns.includes('Dark spots/Hyperpigmentation')) {
+    ingredients.beneficial.push('Vitamin C', 'Arbutin', 'Kojic Acid');
+  }
+  if (concerns.includes('Dullness')) {
+    ingredients.beneficial.push('Glycolic Acid', 'Vitamin C', 'Niacinamide');
+  }
+  
+  // Remove duplicates
+  ingredients.beneficial = [...new Set(ingredients.beneficial)];
+  
+  // Remove ingredients based on allergies
+  if (allergies !== 'None known') {
+    ingredients.avoid.push(allergies);
+    ingredients.beneficial = ingredients.beneficial.filter(ingredient => 
+      !ingredient.toLowerCase().includes(allergies.toLowerCase())
+    );
+  }
+  
+  return ingredients;
+};
+
+// Generate lifestyle tips
+const generateLifestyleTips = (lifestyle) => {
+  const tips = [];
+  
+  if (lifestyle.stressLevel === 'High' || lifestyle.stressLevel === 'Very High') {
+    tips.push('Incorporate stress-reduction techniques - meditation, yoga, or deep breathing');
+  }
+  
+  if (lifestyle.sleepQuality === 'Poor' || lifestyle.sleepQuality === 'Fair') {
+    tips.push('Aim for 7-9 hours of quality sleep - skin repairs itself during sleep');
+  }
+  
+  if (lifestyle.sunExposure.includes('High')) {
+    tips.push('Reapply sunscreen every 2 hours when outdoors');
+  }
+  
+  if (lifestyle.exerciseFrequency === 'Daily' || lifestyle.exerciseFrequency === '3-4 times per week') {
+    tips.push('Cleanse skin immediately after exercise to prevent breakouts');
+  }
+  
+  // General tips
+  tips.push('Stay hydrated - drink at least 8 glasses of water daily');
+  tips.push('Eat a balanced diet rich in antioxidants and omega-3 fatty acids');
+  
+  return tips;
+};
+
 export default api;

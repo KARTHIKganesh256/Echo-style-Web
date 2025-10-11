@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import api from '../utils/api';
+import { skinCareAPI } from '../utils/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import SkinCareResults from '../components/SkinCareResults';
+import useAuthStore from '../store/useAuthStore';
 
 const SkinCarePage = () => {
+  const { isAuthenticated, user, refreshSession } = useAuthStore();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [existingAnalysis, setExistingAnalysis] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [formData, setFormData] = useState({
     basicInfo: {
       ageRange: '',
@@ -38,19 +41,39 @@ const SkinCarePage = () => {
   ];
 
   useEffect(() => {
-    fetchExistingAnalysis();
-  }, []);
+    const checkAuthAndFetch = async () => {
+      console.log('🔍 Checking authentication state...');
+      console.log('isAuthenticated:', isAuthenticated);
+      console.log('user:', user?.email);
+      
+      setAuthLoading(false);
+      
+      // Only fetch analysis if authenticated
+      if (isAuthenticated && user) {
+        console.log('✅ User is authenticated, fetching analysis...');
+        await fetchExistingAnalysis();
+      } else {
+        console.log('❌ User not authenticated yet');
+      }
+    };
+    
+    checkAuthAndFetch();
+  }, [isAuthenticated, user]);
 
   const fetchExistingAnalysis = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/skin-care/analysis');
+      console.log('🔍 Fetching existing analysis for user:', user?.email);
+      const response = await skinCareAPI.getSkinCareAnalysis();
       if (response.data) {
+        console.log('✅ Existing analysis found');
         setExistingAnalysis(response.data);
         setShowResults(true);
+      } else {
+        console.log('ℹ️ No existing analysis found');
       }
     } catch (error) {
-      console.log('No existing analysis found');
+      console.log('ℹ️ No existing analysis found or error:', error.message);
     } finally {
       setLoading(false);
     }
@@ -109,16 +132,42 @@ const SkinCarePage = () => {
   const submitAnalysis = async () => {
     try {
       setLoading(true);
-      const response = await api.post('/skin-care/analyze', formData);
+      console.log('🔍 Submitting analysis for user:', user?.email);
+      const response = await skinCareAPI.analyzeSkinCare(formData);
+      console.log('✅ Analysis submitted successfully');
       setExistingAnalysis(response.data.analysis);
       setShowResults(true);
     } catch (error) {
-      console.error('Error submitting analysis:', error);
-      alert('Error submitting analysis. Please try again.');
+      console.error('❌ Error submitting analysis:', error);
+      alert(`Error submitting analysis: ${error.message}. Please try again.`);
     } finally {
       setLoading(false);
     }
   };
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <LoadingSpinner />
+          <p className="mt-4 text-white">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if not authenticated
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center text-white">
+          <h2 className="text-2xl font-bold mb-4">Authentication Required</h2>
+          <p>Please log in to access the skin care analysis.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading && !existingAnalysis) {
     return (

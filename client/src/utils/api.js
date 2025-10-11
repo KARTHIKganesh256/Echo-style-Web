@@ -348,7 +348,7 @@ export const productsAPI = {
         .from('saved_products')
         .insert({
           user_id: user.id,
-          product_id: id
+          product_id: id // This should be a UUID from the products table
         });
       
       if (error && error.code !== '23505') { // 23505 = duplicate key error

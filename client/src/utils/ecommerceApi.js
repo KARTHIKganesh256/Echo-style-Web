@@ -141,9 +141,37 @@ export const ecommerceApi = {
 
   async getCart() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      // Try to get authenticated user
+      let userId = null;
+      
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        userId = session?.user?.id;
+      } catch (e) {
+        console.log('No active session');
+      }
 
+      // If not authenticated, return local cart
+      if (!userId) {
+        console.log('📦 Fetching local cart');
+        const localCart = JSON.parse(localStorage.getItem('temp_cart') || '[]');
+        
+        // Convert local cart format to match database cart
+        const cartItems = localCart.map(item => ({
+          id: `local_${item.productId}`,
+          product_id: item.productId,
+          variant_id: item.variantId,
+          quantity: item.quantity,
+          price: 0, // Will be fetched if needed
+          created_at: new Date(item.addedAt).toISOString(),
+          product: null, // Will be populated if needed
+          variant: null
+        }));
+        
+        return { data: cartItems, error: null };
+      }
+
+      // User is authenticated, fetch from database
       const { data, error } = await supabase
         .from('shopping_cart')
         .select(`
@@ -151,13 +179,21 @@ export const ecommerceApi = {
           product:ecommerce_products(*),
           variant:product_variants(*)
         `)
-        .eq('user_id', user.id);
+        .eq('user_id', userId);
 
-      if (error) throw error;
-      return { data, error: null };
+      if (error) {
+        console.error('Database cart fetch error:', error);
+        // Fallback to local cart
+        const localCart = JSON.parse(localStorage.getItem('temp_cart') || '[]');
+        return { data: localCart, error: null };
+      }
+
+      return { data: data || [], error: null };
     } catch (error) {
       console.error('Error fetching cart:', error);
-      return { data: null, error };
+      // Always fallback to local cart
+      const localCart = JSON.parse(localStorage.getItem('temp_cart') || '[]');
+      return { data: localCart || [], error: null };
     }
   },
 

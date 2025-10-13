@@ -1,10 +1,29 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import useAuthStore from '../store/useAuthStore';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { isAdmin } from '../utils/adminAuth';
 
 const Navbar = () => {
   const { isAuthenticated, user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const [isAdminUser, setIsAdminUser] = useState(false);
+
+  useEffect(() => {
+    checkAdminStatus();
+  }, [isAuthenticated, user]);
+
+  const checkAdminStatus = async () => {
+    if (isAuthenticated && user) {
+      const adminStatus = await isAdmin();
+      setIsAdminUser(adminStatus);
+    } else {
+      setIsAdminUser(false);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -28,82 +47,98 @@ const Navbar = () => {
             </motion.div>
           </Link>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             {isAuthenticated ? (
               <>
-                <Link to="/analyze">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    className="text-white hover:text-purple-200 transition-colors text-sm"
-                  >
-                    Color Analysis
-                  </motion.button>
-                </Link>
-                <Link to="/skin-care">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    className="text-white hover:text-purple-200 transition-colors text-sm"
-                  >
-                    Skin Care
-                  </motion.button>
-                </Link>
-                <Link to="/upload">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    className="text-white hover:text-purple-200 transition-colors text-sm"
-                  >
-                    📸 Photo Analysis
-                  </motion.button>
-                </Link>
-                <Link to="/products">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    className="text-white hover:text-purple-200 transition-colors text-sm"
-                  >
-                    Products
-                  </motion.button>
-                </Link>
-                <Link to="/photo-history">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    className="text-white hover:text-purple-200 transition-colors text-sm"
-                  >
-                    History
-                  </motion.button>
-                </Link>
-                <Link to="/profile">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    className="text-white hover:text-purple-200 transition-colors text-sm"
-                  >
-                    Profile
-                  </motion.button>
-                </Link>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  onClick={handleLogout}
-                  className="btn-primary bg-red-500 text-white btn-glow text-sm px-4 py-2"
-                >
-                  Logout
-                </motion.button>
+                <div className="hidden md:flex items-center gap-2">
+                  <Link to="/analyze">
+                    <Button variant="ghost" size="sm" className="text-white hover:text-purple-200 hover:bg-white/10">
+                      🎨 Color Analysis
+                    </Button>
+                  </Link>
+                  <Link to="/skin-care">
+                    <Button variant="ghost" size="sm" className="text-white hover:text-purple-200 hover:bg-white/10">
+                      ✨ Skin Care
+                    </Button>
+                  </Link>
+                  <Link to="/upload">
+                    <Button variant="ghost" size="sm" className="text-white hover:text-purple-200 hover:bg-white/10">
+                      📸 Photo Analysis
+                    </Button>
+                  </Link>
+                  <Link to="/products">
+                    <Button variant="ghost" size="sm" className="text-white hover:text-purple-200 hover:bg-white/10">
+                      🛍️ Products
+                    </Button>
+                  </Link>
+                  <Link to="/photo-history">
+                    <Button variant="ghost" size="sm" className="text-white hover:text-purple-200 hover:bg-white/10">
+                      📚 History
+                    </Button>
+                  </Link>
+                  <Link to="/orders">
+                    <Button variant="ghost" size="sm" className="text-white hover:text-purple-200 hover:bg-white/10">
+                      📦 Orders
+                    </Button>
+                  </Link>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <Link to="/cart">
+                    <motion.div whileHover={{ scale: 1.05 }}>
+                      <Button variant="ghost" size="sm" className="text-white hover:text-purple-200 hover:bg-white/10">
+                        🛒 Cart
+                      </Button>
+                    </motion.div>
+                  </Link>
+                  
+                  {/* Admin link - only visible to admin users */}
+                  {isAdminUser && (
+                    <Link to="/admin">
+                      <motion.div whileHover={{ scale: 1.05 }}>
+                        <Button variant="ghost" size="sm" className="text-white hover:text-purple-200 hover:bg-white/10 border border-yellow-400/30">
+                          👑 Admin
+                        </Button>
+                      </motion.div>
+                    </Link>
+                  )}
+                  
+                  <Link to="/profile">
+                    <motion.div whileHover={{ scale: 1.05 }}>
+                      <Avatar className="h-8 w-8 border-2 border-white/20">
+                        <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs">
+                          {user?.email?.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </motion.div>
+                  </Link>
+                  
+                  <motion.div whileHover={{ scale: 1.05 }}>
+                    <Button 
+                      onClick={handleLogout}
+                      variant="destructive" 
+                      size="sm"
+                      className="bg-red-500/90 hover:bg-red-600"
+                    >
+                      Logout
+                    </Button>
+                  </motion.div>
+                </div>
               </>
             ) : (
               <>
                 <Link to="/login">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    className="text-white hover:text-purple-200 transition-colors"
-                  >
+                  <Button variant="ghost" className="text-white hover:text-purple-200 hover:bg-white/10">
                     Login
-                  </motion.button>
+                  </Button>
                 </Link>
                 <Link to="/signup">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    className="btn-primary bg-white text-purple-600 btn-glow"
+                  <Button 
+                    className="bg-white text-purple-600 hover:bg-purple-50 font-semibold"
+                    size="sm"
                   >
                     Sign Up
-                  </motion.button>
+                  </Button>
                 </Link>
               </>
             )}

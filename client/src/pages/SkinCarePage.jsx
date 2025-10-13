@@ -1,12 +1,20 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { skinCareAPI } from '../utils/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import SkinCareResults from '../components/SkinCareResults';
 import useAuthStore from '../store/useAuthStore';
+import { supabase } from '../utils/supabase';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
 
 const SkinCarePage = () => {
   const { isAuthenticated, user, refreshSession } = useAuthStore();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -45,6 +53,22 @@ const SkinCarePage = () => {
       console.log('🔍 Checking authentication state...');
       console.log('isAuthenticated:', isAuthenticated);
       console.log('user:', user?.email);
+      
+      // Additional check with Supabase directly
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('🔍 Direct Supabase session check:', { 
+          hasSession: !!session, 
+          hasUser: !!session?.user, 
+          error: error?.message 
+        });
+        
+        if (session?.user) {
+          console.log('✅ Supabase session confirmed:', session.user.email);
+        }
+      } catch (err) {
+        console.error('❌ Supabase session check failed:', err);
+      }
       
       setAuthLoading(false);
       
@@ -133,12 +157,29 @@ const SkinCarePage = () => {
     try {
       setLoading(true);
       console.log('🔍 Submitting analysis for user:', user?.email);
+      
+      // First try to refresh the session to ensure we have a valid token
+      const sessionRefreshed = await refreshSession();
+      if (!sessionRefreshed) {
+        alert('Your session has expired. Please log in again to continue.');
+        navigate('/login');
+        return;
+      }
+      
       const response = await skinCareAPI.analyzeSkinCare(formData);
       console.log('✅ Analysis submitted successfully');
       setExistingAnalysis(response.data.analysis);
       setShowResults(true);
     } catch (error) {
       console.error('❌ Error submitting analysis:', error);
+      
+      // If session expired, redirect to login
+      if (error.message.includes('Session expired') || error.message.includes('login')) {
+        alert('Your session has expired. Please log in again to continue.');
+        navigate('/login');
+        return;
+      }
+      
       alert(`Error submitting analysis: ${error.message}. Please try again.`);
     } finally {
       setLoading(false);
@@ -205,9 +246,9 @@ const SkinCarePage = () => {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-12"
         >
-          <div className="inline-block bg-pink-100 text-pink-600 px-4 py-2 rounded-full text-sm font-medium mb-4">
-            Skin Analysis Questionnaire
-          </div>
+          <Badge variant="secondary" className="mb-4 bg-pink-100 text-pink-600 hover:bg-pink-200">
+            ✨ Skin Analysis Questionnaire
+          </Badge>
           <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
             Let's Understand Your Skin
           </h1>
@@ -216,23 +257,27 @@ const SkinCarePage = () => {
           </p>
         </motion.div>
 
-        {/* Progress Bar */}
+        {/* Progress Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className="flex items-center justify-center mb-4">
-            <span className="text-sm font-medium text-gray-600">
-              Progress: {currentStep} of 4
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2 max-w-md mx-auto">
-            <div 
-              className="bg-gradient-to-r from-emerald-500 to-green-500 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${(currentStep / 4) * 100}%` }}
-            />
-          </div>
+          <Card className="max-w-md mx-auto">
+            <CardContent className="pt-6">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-600">
+                    Progress
+                  </span>
+                  <span className="text-sm font-semibold text-emerald-600">
+                    {currentStep} of 4
+                  </span>
+                </div>
+                <Progress value={(currentStep / 4) * 100} className="h-2" />
+              </div>
+            </CardContent>
+          </Card>
         </motion.div>
 
         {/* Step Navigation */}
@@ -241,21 +286,25 @@ const SkinCarePage = () => {
           animate={{ opacity: 1, y: 0 }}
           className="flex justify-center mb-12"
         >
-          <div className="flex space-x-4">
-            {steps.map((step) => (
-              <div
-                key={step.id}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-300 ${
-                  currentStep === step.id
-                    ? 'bg-emerald-500 text-white shadow-lg'
-                    : 'bg-white text-gray-500 shadow-sm'
-                }`}
-              >
-                <span className="text-lg">{step.icon}</span>
-                <span className="text-sm font-medium">{step.title}</span>
-              </div>
-            ))}
-          </div>
+          <Card className="p-2">
+            <div className="flex gap-2">
+              {steps.map((step) => (
+                <Button
+                  key={step.id}
+                  variant={currentStep === step.id ? "default" : "ghost"}
+                  size="sm"
+                  className={`flex items-center gap-2 transition-all duration-300 ${
+                    currentStep === step.id
+                      ? 'bg-emerald-500 text-white shadow-lg'
+                      : 'text-gray-500 hover:text-emerald-600'
+                  }`}
+                >
+                  <span className="text-lg">{step.icon}</span>
+                  <span className="text-sm font-medium hidden sm:inline">{step.title}</span>
+                </Button>
+              ))}
+            </div>
+          </Card>
         </motion.div>
 
         {/* Form Content */}
@@ -263,8 +312,9 @@ const SkinCarePage = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl shadow-xl p-8"
           >
+            <Card className="shadow-xl">
+              <CardContent className="p-8">
             <AnimatePresence mode="wait">
               {currentStep === 1 && (
                 <motion.div
@@ -633,42 +683,35 @@ const SkinCarePage = () => {
             </AnimatePresence>
 
             {/* Navigation Buttons */}
-            <div className="flex justify-between mt-12">
-              <button
+            <Separator className="my-8" />
+            <div className="flex justify-between">
+              <Button
                 onClick={prevStep}
                 disabled={currentStep === 1}
-                className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-                  currentStep === 1
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
+                variant="outline"
+                size="lg"
+                className="flex items-center gap-2"
               >
                 <span>←</span>
                 <span>Previous</span>
-              </button>
+              </Button>
 
               {currentStep < 4 ? (
-                <button
+                <Button
                   onClick={nextStep}
                   disabled={!canProceed()}
-                  className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-                    canProceed()
-                      ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
+                  size="lg"
+                  className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600"
                 >
                   <span>Next</span>
                   <span>→</span>
-                </button>
+                </Button>
               ) : (
-                <button
+                <Button
                   onClick={submitAnalysis}
                   disabled={!canProceed() || loading}
-                  className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-                    canProceed() && !loading
-                      ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
+                  size="lg"
+                  className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600"
                 >
                   {loading ? (
                     <LoadingSpinner size="sm" />
@@ -678,9 +721,11 @@ const SkinCarePage = () => {
                       <span>→</span>
                     </>
                   )}
-                </button>
+                </Button>
               )}
             </div>
+              </CardContent>
+            </Card>
           </motion.div>
         </div>
       </div>

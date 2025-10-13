@@ -1,27 +1,45 @@
 import { create } from 'zustand';
 import { supabase } from '../utils/supabase';
+import { localAuth } from '../utils/localAuth';
 
 const useAuthStore = create((set, get) => {
-  // Initialize auth state from Supabase session
+  // Initialize auth state from Supabase session with local fallback
   const initializeAuth = async () => {
     try {
       console.log('Initializing auth...');
-      const { data: { session }, error } = await supabase.auth.getSession();
       
-      if (error) {
-        console.error('Error getting session:', error);
-        return;
+      // Try Supabase first
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (session?.user) {
+          console.log('✅ Session found via Supabase:', session.user.email);
+          set({
+            user: session.user,
+            token: session.access_token,
+            isAuthenticated: true,
+          });
+          return;
+        }
+      } catch (supabaseError) {
+        console.log('⚠️ Supabase session failed, checking local auth:', supabaseError.message);
       }
       
-      if (session?.user) {
-        console.log('Session found:', session.user.email);
+      // Fallback to local authentication
+      const localUser = await localAuth.getCurrentUser();
+      if (localUser) {
+        console.log('✅ Session found via local auth:', localUser.email);
         set({
-          user: session.user,
-          token: session.access_token,
+          user: localUser,
+          token: localAuth.generateToken(localUser),
           isAuthenticated: true,
         });
       } else {
-        console.log('No session found');
+        console.log('No session found in either system');
         set({
           user: null,
           token: null,
@@ -88,7 +106,56 @@ const useAuthStore = create((set, get) => {
     // Add method to refresh session
     refreshSession: async () => {
       console.log('Refreshing session...');
-      await initializeAuth();
+      try {
+        // Try Supabase first
+        try {
+          const { data: { session }, error } = await supabase.auth.refreshSession();
+          
+          if (error) {
+            throw error;
+          }
+          
+          if (session?.user) {
+            console.log('✅ Session refreshed successfully via Supabase:', session.user.email);
+            set({
+              user: session.user,
+              token: session.access_token,
+              isAuthenticated: true,
+            });
+            return true;
+          }
+        } catch (supabaseError) {
+          console.log('⚠️ Supabase refresh failed, checking local auth:', supabaseError.message);
+        }
+        
+        // Fallback to local authentication
+        const localUser = await localAuth.getCurrentUser();
+        if (localUser) {
+          console.log('✅ Session refreshed successfully via local auth:', localUser.email);
+          set({
+            user: localUser,
+            token: localAuth.generateToken(localUser),
+            isAuthenticated: true,
+          });
+          return true;
+        } else {
+          console.log('No session after refresh');
+          set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+          });
+          return false;
+        }
+      } catch (error) {
+        console.error('Error refreshing session:', error);
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+        });
+        return false;
+      }
     },
   };
 });

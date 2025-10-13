@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { ShoppingCart, Heart } from 'lucide-react';
 import { productsAPI, authAPI } from '../utils/api';
+import ecommerceApi from '../utils/ecommerceApi';
 import useAuthStore from '../store/useAuthStore';
 import SkeletonCard from '../components/SkeletonCard';
 
 const ProductsPage = () => {
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
@@ -15,11 +19,26 @@ const ProductsPage = () => {
   });
   const { user } = useAuthStore();
   const [savedProducts, setSavedProducts] = useState(new Set());
+  const [wishlist, setWishlist] = useState(new Set());
+  const [addingToCart, setAddingToCart] = useState({});
 
   useEffect(() => {
     fetchProducts();
     loadSavedProducts();
+    loadWishlist();
   }, [filters]);
+
+  const loadWishlist = async () => {
+    try {
+      if (!user) return;
+      const { data } = await ecommerceApi.getWishlist();
+      if (data) {
+        setWishlist(new Set(data.map(item => item.product_id)));
+      }
+    } catch (error) {
+      console.error('Failed to load wishlist:', error);
+    }
+  };
 
   const loadSavedProducts = async () => {
     try {
@@ -46,14 +65,92 @@ const ProductsPage = () => {
     setLoading(true);
     try {
       console.log('Fetching products with filters:', filters);
-      const { data } = await productsAPI.getProducts(filters);
-      console.log('Products received:', data);
-      setProducts(data || []);
+      
+      // Build filter object for e-commerce API
+      const ecommerceFilters = {};
+      if (filters.season !== 'All') ecommerceFilters.season = filters.season;
+      
+      // Fetch e-commerce products
+      const { data: ecommerceProducts } = await ecommerceApi.getProducts(ecommerceFilters);
+      
+      // Also fetch legacy products (if they still exist)
+      let legacyProducts = [];
+      try {
+        const { data: legacyData } = await productsAPI.getProducts(filters);
+        legacyProducts = legacyData || [];
+      } catch (error) {
+        console.log('No legacy products or error fetching:', error);
+      }
+      
+      // Combine both product sources
+      const allProducts = [
+        ...(ecommerceProducts || []).map(p => ({
+          ...p,
+          isEcommerce: true,
+          _id: p.id,
+          image_url: p.thumbnail_url,
+          imageUrl: p.thumbnail_url,
+          productType: p.category?.name || 'Product',
+          hue: p.color_tags?.[0] || 'Multi',
+          chroma: p.is_featured ? 'Bright' : 'Soft',
+          value: 'Medium'
+        })),
+        ...(legacyProducts || []).map(p => ({ ...p, isEcommerce: false }))
+      ];
+      
+      console.log('Products received:', allProducts.length, '(E-commerce:', ecommerceProducts?.length, ', Legacy:', legacyProducts.length, ')');
+      setProducts(allProducts);
     } catch (error) {
       console.error('Failed to fetch products:', error);
       setProducts([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddToCart = async (product) => {
+    try {
+      if (!user) {
+        alert('Please login to add items to cart');
+        navigate('/login');
+        return;
+      }
+
+      setAddingToCart(prev => ({ ...prev, [product.id]: true }));
+      const { error } = await ecommerceApi.addToCart(product.id);
+      
+      if (error) throw error;
+      
+      alert('✅ Added to cart!');
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      alert('Failed to add to cart');
+    } finally {
+      setAddingToCart(prev => ({ ...prev, [product.id]: false }));
+    }
+  };
+
+  const handleToggleWishlist = async (productId) => {
+    try {
+      if (!user) {
+        alert('Please login to add to wishlist');
+        navigate('/login');
+        return;
+      }
+
+      await ecommerceApi.toggleWishlist(productId);
+      
+      setWishlist(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(productId)) {
+          newSet.delete(productId);
+        } else {
+          newSet.add(productId);
+        }
+        return newSet;
+      });
+    } catch (error) {
+      console.error('Error toggling wishlist:', error);
     }
   };
 
@@ -291,20 +388,75 @@ const ProductsPage = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-white">₹{product.price}</span>
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => handleSaveProduct(product._id)}
-                      className={`p-2 rounded-full ${
-                        savedProducts.has(product._id)
-                          ? 'bg-red-500 text-white'
-                          : 'bg-white bg-opacity-20 text-white'
-                      } transition-colors`}
-                    >
-                      ♥
-                    </motion.button>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl font-bold text-white">₹{product.price}</span>
+                      <div className="flex gap-2">
+                        {/* Wishlist for e-commerce products */}
+                        {product.isEcommerce && (
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => handleToggleWishlist(product.id)}
+                            className={`p-2 rounded-full ${
+                              wishlist.has(product.id)
+                                ? 'bg-red-500 text-white'
+                                : 'bg-white bg-opacity-20 text-white'
+                            } transition-colors`}
+                          >
+                            <Heart size={18} fill={wishlist.has(product.id) ? 'white' : 'none'} />
+                          </motion.button>
+                        )}
+                        {/* Legacy save for old products */}
+                        {!product.isEcommerce && (
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => handleSaveProduct(product._id)}
+                            className={`p-2 rounded-full ${
+                              savedProducts.has(product._id)
+                                ? 'bg-red-500 text-white'
+                                : 'bg-white bg-opacity-20 text-white'
+                            } transition-colors`}
+                          >
+                            ♥
+                          </motion.button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Add to Cart button for e-commerce products */}
+                    {product.isEcommerce && (
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleAddToCart(product)}
+                        disabled={addingToCart[product.id] || !product.is_in_stock}
+                        className={`w-full py-2 px-4 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors ${
+                          !product.is_in_stock
+                            ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
+                        }`}
+                      >
+                        {addingToCart[product.id] ? (
+                          'Adding...'
+                        ) : !product.is_in_stock ? (
+                          'Out of Stock'
+                        ) : (
+                          <>
+                            <ShoppingCart size={18} />
+                            Add to Cart
+                          </>
+                        )}
+                      </motion.button>
+                    )}
+                    
+                    {/* Stock indicator */}
+                    {product.isEcommerce && product.stock_quantity <= 10 && product.stock_quantity > 0 && (
+                      <p className="text-xs text-yellow-300 text-center">
+                        Only {product.stock_quantity} left in stock!
+                      </p>
+                    )}
                   </div>
                 </div>
               </motion.div>

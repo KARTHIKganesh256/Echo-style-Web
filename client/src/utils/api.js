@@ -1,31 +1,43 @@
 import { supabase } from './supabase';
+import { localAuth } from './localAuth';
+import { getProducts, getProductById, searchProducts } from './localProducts';
 
 // Supabase-only configuration
 console.log('🔧 Using Supabase-only architecture');
 console.log('🔗 Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
 
-// Auth API - Using Supabase Password Auth
+// Auth API - Using Supabase with Local Fallback
 export const authAPI = {
   register: async (data) => {
     try {
-      console.log('Registering user with password...');
-      const { data: authData, error } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            name: data.name,
+      console.log('Registering user...');
+      
+      // Try Supabase first
+      try {
+        const { data: authData, error } = await supabase.auth.signUp({
+          email: data.email,
+          password: data.password,
+          options: {
+            data: {
+              name: data.name,
+            }
           }
+        });
+        
+        if (error) {
+          throw error;
         }
-      });
-      
-      if (error) {
-        console.error('Registration error:', error);
-        throw new Error(error.message || 'Registration failed');
+        
+        console.log('✅ Registration successful via Supabase');
+        return { data: authData.user, token: authData.session?.access_token };
+      } catch (supabaseError) {
+        console.log('⚠️ Supabase registration failed, using local auth:', supabaseError.message);
+        
+        // Fallback to local authentication
+        const result = await localAuth.register(data);
+        console.log('✅ Registration successful via local auth');
+        return result;
       }
-      
-      console.log('Registration successful:', authData);
-      return { data: authData.user, token: authData.session?.access_token };
     } catch (err) {
       console.error('Auth register error:', err);
       throw err;
@@ -34,19 +46,29 @@ export const authAPI = {
   
   login: async (data) => {
     try {
-      console.log('Logging in user with password...');
-      const { data: authData, error } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
-      });
+      console.log('Logging in user...');
       
-      if (error) {
-        console.error('Login error:', error);
-        throw new Error(error.message || 'Login failed');
+      // Try Supabase first
+      try {
+        const { data: authData, error } = await supabase.auth.signInWithPassword({
+          email: data.email,
+          password: data.password,
+        });
+        
+        if (error) {
+          throw error;
+        }
+        
+        console.log('✅ Login successful via Supabase');
+        return { data: authData.user, token: authData.session?.access_token };
+      } catch (supabaseError) {
+        console.log('⚠️ Supabase login failed, using local auth:', supabaseError.message);
+        
+        // Fallback to local authentication
+        const result = await localAuth.login(data);
+        console.log('✅ Login successful via local auth');
+        return result;
       }
-      
-      console.log('Login successful:', authData);
-      return { data: authData.user, token: authData.session?.access_token };
     } catch (err) {
       console.error('Auth login error:', err);
       throw err;
@@ -55,24 +77,35 @@ export const authAPI = {
   
   getProfile: async () => {
     try {
-      // First check if there's an active session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error('Session error:', sessionError);
-        throw new Error('Auth session missing!');
+      // Try Supabase first
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          throw sessionError;
+        }
+        
+        if (!session) {
+          throw new Error('No Supabase session');
+        }
+        
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error) throw error;
+        
+        console.log('✅ Profile loaded via Supabase');
+        return { data: user };
+      } catch (supabaseError) {
+        console.log('⚠️ Supabase profile failed, using local auth:', supabaseError.message);
+        
+        // Fallback to local authentication
+        const user = await localAuth.getCurrentUser();
+        if (!user) {
+          throw new Error('Auth session missing!');
+        }
+        
+        console.log('✅ Profile loaded via local auth');
+        return { data: user };
       }
-      
-      if (!session) {
-        console.warn('No active session found');
-        throw new Error('Auth session missing!');
-      }
-      
-      // Get user data
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) throw new Error(error.message);
-      
-      return { data: user };
     } catch (err) {
       console.error('getProfile error:', err);
       throw err;
@@ -80,9 +113,27 @@ export const authAPI = {
   },
   
   updateProfile: async (userData) => {
-    const { data, error } = await supabase.auth.updateUser(userData);
-    if (error) throw new Error(error.message);
-    return { data: data.user };
+    try {
+      // Try Supabase first
+      try {
+        const { data, error } = await supabase.auth.updateUser(userData);
+        if (error) throw error;
+        
+        console.log('✅ Profile updated via Supabase');
+        return { data: data.user };
+      } catch (supabaseError) {
+        console.log('⚠️ Supabase profile update failed, using local auth:', supabaseError.message);
+        
+        // Fallback to local authentication
+        const updatedUser = await localAuth.updateUser(userData);
+        
+        console.log('✅ Profile updated via local auth');
+        return { data: updatedUser };
+      }
+    } catch (err) {
+      console.error('updateProfile error:', err);
+      throw err;
+    }
   },
 };
 
@@ -241,66 +292,80 @@ export const productsAPI = {
   getProducts: async (params = {}) => {
     try {
       console.log('🔍 Fetching products with params:', params);
-      console.log('🔗 Supabase URL:', supabase.supabaseUrl);
       
-      let query = supabase.from('products').select('*');
+      // Try Supabase first
+      try {
+        let query = supabase.from('products').select('*');
+        
+        // Apply filters
+        if (params.season && params.season !== 'All Seasons' && params.season !== 'All') {
+          query = query.eq('season', params.season);
+          console.log('🔍 Filtering by season:', params.season);
+        }
+        if (params.productType && params.productType !== 'All Types' && params.productType !== 'All') {
+          query = query.eq('category', params.productType);
+          console.log('🔍 Filtering by type:', params.productType);
+        }
+        if (params.chroma && params.chroma !== 'All Chroma' && params.chroma !== 'All') {
+          query = query.eq('chroma', params.chroma);
+          console.log('🔍 Filtering by chroma:', params.chroma);
+        }
+        if (params.hue && params.hue !== 'All Colors' && params.hue !== 'All') {
+          query = query.eq('hue', params.hue);
+          console.log('🔍 Filtering by hue:', params.hue);
+        }
+        
+        console.log('🔍 Executing Supabase query...');
+        const { data, error } = await query;
       
-      // Apply filters
-      if (params.season && params.season !== 'All Seasons' && params.season !== 'All') {
-        query = query.eq('season', params.season);
-        console.log('🔍 Filtering by season:', params.season);
+        if (error) {
+          throw error;
+        }
+        
+        console.log('✅ Products fetched successfully via Supabase:', data?.length || 0, 'items');
+        console.log('📦 Sample product:', data?.[0]);
+        
+        // Log image URLs to debug
+        data?.forEach((product, index) => {
+          console.log(`🖼️ Product ${index + 1} image URL:`, product.image_url);
+        });
+        
+        return { data: data || [] };
+      } catch (supabaseError) {
+        console.log('⚠️ Supabase products fetch failed, using local data:', supabaseError.message);
+        
+        // Fallback to local products
+        const localProductsData = getProducts(params);
+        console.log('✅ Products fetched successfully via local data:', localProductsData.length, 'items');
+        
+        return { data: localProductsData };
       }
-      if (params.productType && params.productType !== 'All Types' && params.productType !== 'All') {
-        query = query.eq('category', params.productType);
-        console.log('🔍 Filtering by type:', params.productType);
-      }
-      if (params.chroma && params.chroma !== 'All Chroma' && params.chroma !== 'All') {
-        query = query.eq('chroma', params.chroma);
-        console.log('🔍 Filtering by chroma:', params.chroma);
-      }
-      if (params.hue && params.hue !== 'All Colors' && params.hue !== 'All') {
-        query = query.eq('hue', params.hue);
-        console.log('🔍 Filtering by hue:', params.hue);
-      }
-      
-      console.log('🔍 Executing query...');
-      const { data, error } = await query;
-      
-      if (error) {
-        console.error('❌ Supabase error:', error);
-        throw error;
-      }
-      
-      console.log('✅ Products fetched successfully:', data?.length || 0, 'items');
-      console.log('📦 Sample product:', data?.[0]);
-      
-      // Log image URLs to debug
-      data?.forEach((product, index) => {
-        console.log(`🖼️ Product ${index + 1} image URL:`, product.image_url);
-      });
-      
-      return { data: data || [] };
     } catch (err) {
       console.error('❌ Error fetching products:', err);
-      console.error('❌ Error details:', {
-        message: err.message,
-        details: err.details,
-        hint: err.hint,
-        code: err.code
-      });
       throw err;
     }
   },
   
   getProductsBySeason: async (season) => {
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('season', season);
-      
-      if (error) throw error;
-      return { data };
+      // Try Supabase first
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('season', season);
+        
+        if (error) throw error;
+        console.log('✅ Products by season fetched via Supabase');
+        return { data };
+      } catch (supabaseError) {
+        console.log('⚠️ Supabase season fetch failed, using local data:', supabaseError.message);
+        
+        // Fallback to local products
+        const localProductsData = getProducts({ season });
+        console.log('✅ Products by season fetched via local data');
+        return { data: localProductsData };
+      }
     } catch (err) {
       console.error('Error fetching products by season:', err);
       throw err;
@@ -324,14 +389,29 @@ export const productsAPI = {
   
   getProductById: async (id) => {
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', id)
-        .single();
-      
-      if (error) throw error;
-      return { data };
+      // Try Supabase first
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
+        if (error) throw error;
+        console.log('✅ Product by ID fetched via Supabase');
+        return { data };
+      } catch (supabaseError) {
+        console.log('⚠️ Supabase product fetch failed, using local data:', supabaseError.message);
+        
+        // Fallback to local products
+        const localProduct = getProductById(id);
+        if (!localProduct) {
+          throw new Error('Product not found');
+        }
+        
+        console.log('✅ Product by ID fetched via local data');
+        return { data: localProduct };
+      }
     } catch (err) {
       console.error('Error fetching product by ID:', err);
       throw err;
@@ -440,61 +520,107 @@ export const skinCareAPI = {
     try {
       console.log('🔍 Analyzing skin care data...');
       
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      let user;
       
-      if (userError || !user) {
-        console.error('Authentication error:', userError);
-        throw new Error('Not authenticated - please log in again');
+      // Try Supabase first
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        console.log('🔍 Session check:', { session: !!session, error: sessionError });
+        
+        if (sessionError) {
+          throw sessionError;
+        }
+        
+        if (!session || !session.user) {
+          console.log('🔍 Attempting to refresh session...');
+          
+          // Try to refresh the session
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          console.log('🔍 Refresh result:', { session: !!refreshData.session, error: refreshError });
+          
+          if (refreshError || !refreshData.session || !refreshData.session.user) {
+            throw new Error('Session expired - please log in again');
+          }
+          
+          console.log('✅ Session refreshed successfully');
+          user = refreshData.session.user;
+        } else {
+          user = session.user;
+        }
+      } catch (supabaseError) {
+        console.log('⚠️ Supabase session failed, using local auth:', supabaseError.message);
+        
+        // Fallback to local authentication
+        user = await localAuth.getCurrentUser();
+        if (!user) {
+          throw new Error('Session expired - please log in again');
+        }
+        
+        console.log('✅ Using local auth user:', user.email);
       }
       
-      console.log('✅ User authenticated:', user.email);
+      console.log('✅ User authenticated:', user.email, 'ID:', user.id);
       
       // Generate analysis based on form data
       const analysis = generateSkinCareAnalysis(formData);
       
-      // Save to Supabase database table
-      console.log('🔍 Saving analysis to Supabase database...');
-      const { data, error } = await supabase
-        .from('skin_care_analyses')
-        .upsert({
-          user_id: user.id,
-          basic_info: formData.basicInfo,
-          skin_type: formData.skinType,
-          skin_concerns: formData.skinConcerns,
-          lifestyle: formData.lifestyle,
-          analysis: analysis,
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
+      // Save analysis data
+      console.log('🔍 Saving analysis...');
       
-      if (error) {
-        console.error('Database save error:', error);
-        // Fallback to localStorage
-        const fallbackData = {
+      // Try Supabase first
+      try {
+        const { data, error } = await supabase
+          .from('skin_care_analyses')
+          .upsert({
+            user_id: user.id,
+            basic_info: formData.basicInfo,
+            skin_type: formData.skinType,
+            skin_concerns: formData.skinConcerns,
+            lifestyle: formData.lifestyle,
+            analysis: analysis,
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+        
+        if (error) {
+          throw error;
+        }
+        
+        console.log('✅ Skin care analysis saved to Supabase database successfully');
+        
+        // Also save to analysis history
+        await supabase
+          .from('analysis_history')
+          .insert({
+            user_id: user.id,
+            analysis_type: 'skin_care',
+            analysis_data: {
+              ...formData,
+              analysis
+            }
+          });
+      } catch (supabaseError) {
+        console.log('⚠️ Supabase save failed, using local storage:', supabaseError.message);
+        
+        // Fallback to local storage
+        const analysisData = {
           ...formData,
           analysis,
-          completedAt: new Date().toISOString()
+          completedAt: new Date().toISOString(),
+          userId: user.id
         };
-        localStorage.setItem('skin_care_analysis', JSON.stringify(fallbackData));
-        console.log('✅ Saved to localStorage as fallback');
-        return { data: { analysis: fallbackData } };
-      }
-      
-      console.log('✅ Skin care analysis saved to database successfully');
-      
-      // Also save to analysis history
-      await supabase
-        .from('analysis_history')
-        .insert({
-          user_id: user.id,
-          analysis_type: 'skin_care',
-          analysis_data: {
-            ...formData,
-            analysis
+        
+        // Save to user's local data
+        await localAuth.saveUserData({
+          user_metadata: {
+            ...user.user_metadata,
+            skin_analyses: [...(user.user_metadata?.skin_analyses || []), analysisData]
           }
         });
+        
+        console.log('✅ Saved to local storage successfully');
+      }
       
       const result = {
         ...formData,
@@ -514,12 +640,31 @@ export const skinCareAPI = {
     try {
       console.log('🔍 Fetching skin care analysis...');
       
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      // First check session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (userError || !user) {
-        console.error('Authentication error:', userError);
-        throw new Error('Not authenticated - please log in again');
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        throw new Error('Session error: ' + sessionError.message);
+      }
+      
+      let user;
+      if (!session || !session.user) {
+        console.error('No active session found');
+        console.log('🔍 Attempting to refresh session...');
+        
+        // Try to refresh the session
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError || !refreshData.session || !refreshData.session.user) {
+          console.error('❌ Session refresh failed, user needs to login again');
+          throw new Error('Session expired - please log in again');
+        }
+        
+        console.log('✅ Session refreshed successfully');
+        user = refreshData.session.user;
+      } else {
+        user = session.user;
       }
       
       console.log('✅ User authenticated:', user.email);

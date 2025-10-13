@@ -1,0 +1,10 @@
+id,email,name,created_at,season,undertone,skin_tone,saved_products,subscription_status
+1,user@example.com,John Doe,2024-01-15T10:30:00Z,Spring,Warm,Light,"1,5,7",active
+2,user2@example.com,Jane Smith,2024-02-20T14:15:00Z,Summer,Cool,Medium,"2,6,8",active
+3,user3@example.com,Mike Johnson,2024-03-10T09:45:00Z,Autumn,Warm,Medium,"3,9,15",inactive
+4,user4@example.com,Sarah Williams,2024-04-05T16:20:00Z,Winter,Cool,Fair,"4,10,16",active
+
+
+
+
+

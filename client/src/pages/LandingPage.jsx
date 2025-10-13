@@ -1,6 +1,9 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 const LandingPage = () => {
   const [scrollY, setScrollY] = useState(0);
@@ -53,15 +56,34 @@ const LandingPage = () => {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.6, duration: 0.8 }}
+            className="flex gap-4 justify-center flex-wrap"
           >
             <Link to="/signup">
-              <motion.button
-                whileHover={{ scale: 1.1, boxShadow: '0 0 30px rgba(255, 255, 255, 0.5)' }}
+              <motion.div
+                whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="btn-primary bg-white text-purple-600 text-xl btn-glow px-12 py-4"
               >
-                Get Started
-              </motion.button>
+                <Button 
+                  size="lg" 
+                  className="bg-white text-purple-600 hover:bg-purple-50 text-xl px-12 py-6 shadow-lg"
+                >
+                  Get Started
+                </Button>
+              </motion.div>
+            </Link>
+            <Link to="/login">
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  className="border-white text-white hover:bg-white hover:text-purple-600 text-xl px-12 py-6"
+                >
+                  Login
+                </Button>
+              </motion.div>
             </Link>
           </motion.div>
         </motion.div>
@@ -129,11 +151,14 @@ const LandingPage = () => {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.2 }}
                 whileHover={{ y: -10 }}
-                className="glass p-8 text-center"
               >
-                <div className="text-6xl mb-4">{feature.icon}</div>
-                <h3 className="text-2xl font-bold text-white mb-4">{feature.title}</h3>
-                <p className="text-purple-200">{feature.description}</p>
+                <Card className="glass border-white/20 bg-white/10 backdrop-blur-lg p-8 text-center h-full">
+                  <CardContent className="p-0">
+                    <div className="text-6xl mb-4">{feature.icon}</div>
+                    <CardTitle className="text-2xl font-bold text-white mb-4">{feature.title}</CardTitle>
+                    <CardDescription className="text-purple-200">{feature.description}</CardDescription>
+                  </CardContent>
+                </Card>
               </motion.div>
             ))}
           </div>
@@ -161,19 +186,28 @@ const LandingPage = () => {
                 viewport={{ once: true }}
                 transition={{ delay: seasonIndex * 0.1 }}
                 whileHover={{ scale: 1.05 }}
-                className="glass p-6"
               >
-                <h3 className="text-2xl font-bold text-white mb-4 text-center">{season}</h3>
-                <div className="grid grid-cols-4 gap-2">
-                  {colors.map((color, colorIndex) => (
-                    <motion.div
-                      key={colorIndex}
-                      whileHover={{ scale: 1.2, zIndex: 10 }}
-                      className="aspect-square rounded-lg shadow-lg cursor-pointer"
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
+                <Card className="glass border-white/20 bg-white/10 backdrop-blur-lg p-6">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-2xl font-bold text-white text-center">
+                      <Badge variant="secondary" className="bg-white/20 text-white hover:bg-white/30">
+                        {season}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="grid grid-cols-4 gap-2">
+                      {colors.map((color, colorIndex) => (
+                        <motion.div
+                          key={colorIndex}
+                          whileHover={{ scale: 1.2, zIndex: 10 }}
+                          className="aspect-square rounded-lg shadow-lg cursor-pointer border-2 border-white/20"
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
               </motion.div>
             ))}
           </div>

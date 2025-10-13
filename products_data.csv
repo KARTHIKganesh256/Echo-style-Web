@@ -1,0 +1,31 @@
+id,name,brand,category,price,image_url,description,season,undertone,hue,chroma,value,tags,rating
+1,Coral Blush,Beauty Co,Makeup,24.99,https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400,Warm coral blush perfect for spring complexions,Spring,Warm,Orange,Medium,Light,"blush,coral,spring,warm",4.5
+2,Cool Pink Lipstick,Makeup Pro,Makeup,19.99,https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400,Cool-toned pink lipstick for summer vibes,Summer,Cool,Pink,Medium,Medium,"lipstick,pink,summer,cool",4.2
+3,Warm Bronze Eyeshadow,Glam Beauty,Makeup,32.99,https://images.unsplash.com/photo-1515688594390-b649af70d282?w=400,Rich bronze eyeshadow for autumn warmth,Autumn,Warm,Brown,High,Dark,"eyeshadow,bronze,autumn,warm",4.7
+4,Deep Berry Lipstick,Lux Cosmetics,Makeup,28.99,https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400,Deep berry lipstick for winter elegance,Winter,Cool,Purple,High,Dark,"lipstick,berry,winter,cool",4.6
+5,Peachy Foundation,Skin Perfect,Foundation,45.99,https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400,Light peach foundation for warm undertones,Spring,Warm,Peach,Low,Light,"foundation,peach,spring,warm",4.3
+6,Cool Concealer,Cover All,Foundation,22.99,https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400,Cool-toned concealer for brightening,Summer,Cool,Beige,Low,Light,"concealer,cool,summer,brightening",4.1
+7,Golden Highlighter,Glow Beauty,Makeup,29.99,https://images.unsplash.com/photo-1512207736890-6ffed8a84e8d?w=400,Golden shimmer highlighter for spring glow,Spring,Warm,Gold,High,Light,"highlighter,gold,spring,shimmer",4.8
+8,Rose Blush,Pink Paradise,Makeup,26.99,https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400,Soft rose blush for summer freshness,Summer,Cool,Pink,Medium,Light,"blush,rose,summer,cool",4.4
+9,Terracotta Bronzer,Sun Kissed,Makeup,34.99,https://images.unsplash.com/photo-1512207736890-6ffed8a84e8d?w=400,Warm terracotta bronzer for autumn depth,Autumn,Warm,Orange,High,Medium,"bronzer,terracotta,autumn,warm",4.6
+10,Plum Eyeshadow,Deep Colors,Makeup,31.99,https://images.unsplash.com/photo-1515688594390-b649af70d282?w=400,Rich plum eyeshadow for winter drama,Winter,Cool,Purple,High,Dark,"eyeshadow,plum,winter,cool",4.5
+11,Nude Lipstick,Natural Beauty,Makeup,21.99,https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400,Perfect nude lipstick for everyday wear,Spring,Warm,Beige,Low,Medium,"lipstick,nude,everyday,warm",4.2
+12,Red Lipstick Classic,Vintage Glam,Makeup,27.99,https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400,Classic red lipstick for all occasions,Winter,Cool,Red,High,Medium,"lipstick,red,classic,cool",4.9
+13,Peach Eyeshadow Palette,Color Dreams,Makeup,42.99,https://images.unsplash.com/photo-1515688594390-b649af70d282?w=400,12-shade peach eyeshadow palette,Spring,Warm,Orange,Medium,Light,"eyeshadow,palette,peach,spring",4.7
+14,Lavender Blush,Soft Tones,Makeup,25.99,https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400,Soft lavender blush for summer elegance,Summer,Cool,Purple,Low,Light,"blush,lavender,summer,cool",4.3
+15,Copper Highlighter,Metallic Glow,Makeup,30.99,https://images.unsplash.com/photo-1512207736890-6ffed8a84e8d?w=400,Copper metallic highlighter for autumn,Autumn,Warm,Orange,High,Medium,"highlighter,copper,autumn,metallic",4.5
+16,Burgundy Lipstick,Deep Kiss,Makeup,24.99,https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400,Deep burgundy lipstick for winter nights,Winter,Cool,Red,High,Dark,"lipstick,burgundy,winter,deep",4.6
+17,Champagne Eyeshadow,Sparkle Beauty,Makeup,28.99,https://images.unsplash.com/photo-1515688594390-b649af70d282?w=400,Champagne shimmer eyeshadow,Spring,Warm,Gold,Medium,Light,"eyeshadow,champagne,spring,shimmer",4.4
+18,Coral Lipstick,Tropical Vibes,Makeup,23.99,https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400,Vibrant coral lipstick for summer,Summer,Warm,Orange,High,Medium,"lipstick,coral,summer,vibrant",4.3
+19,Burnt Orange Blush,Autumn Glow,Makeup,27.99,https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400,Burnt orange blush for autumn warmth,Autumn,Warm,Orange,High,Medium,"blush,orange,autumn,warm",4.5
+20,Mauve Lipstick,Modern Romance,Makeup,26.99,https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400,Modern mauve lipstick for winter,Winter,Cool,Purple,Medium,Medium,"lipstick,mauve,winter,modern",4.4
+21,Light Coverage Foundation,Sheer Perfection,Foundation,38.99,https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400,Light coverage foundation for natural look,Spring,Warm,Beige,Low,Light,"foundation,light,natural,spring",4.2
+22,Full Coverage Foundation,Flawless Skin,Foundation,49.99,https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400,Full coverage foundation for perfect skin,Winter,Cool,Beige,Low,Medium,"foundation,full,coverage,winter",4.7
+23,Tinted Moisturizer,Dewy Glow,Foundation,32.99,https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400,Tinted moisturizer with SPF,Summer,Warm,Beige,Low,Light,"moisturizer,tinted,spf,summer",4.3
+24,BB Cream,All-in-One,Foundation,35.99,https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400,Multi-tasking BB cream,Spring,Warm,Beige,Low,Light,"bb-cream,multi-use,spring,warm",4.4
+25,Setting Powder,Matte Finish,Foundation,28.99,https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400,Translucent setting powder,All,Neutral,Beige,Low,Light,"powder,setting,matte,all-seasons",4.6
+
+
+
+
+

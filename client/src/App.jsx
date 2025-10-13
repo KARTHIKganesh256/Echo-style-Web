@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import CustomCursor from './components/CustomCursor';
 import AuthCallback from './components/AuthCallback';
+import ConnectionStatus from './components/ConnectionStatus';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
@@ -13,13 +14,19 @@ import UploadScreen from './pages/UploadScreen';
 import AnalysisScreen from './pages/AnalysisScreen';
 import SocialMediaScreen from './pages/SocialMediaScreen';
 import PhotoHistoryScreen from './pages/PhotoHistoryScreen';
+import ShoppingCartPage from './pages/ShoppingCartPage';
+import CheckoutPage from './pages/CheckoutPage';
+import OrderHistoryPage from './pages/OrderHistoryPage';
+import AdminDashboard from './pages/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 
 function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900">
         <CustomCursor />
+        <ConnectionStatus />
         <Navbar />
         <div className="pt-20">
           <Routes>
@@ -88,6 +95,40 @@ function App() {
               element={
                 <ProtectedRoute>
                   <PhotoHistoryScreen />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cart"
+              element={
+                <ProtectedRoute>
+                  <ShoppingCartPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/checkout"
+              element={
+                <ProtectedRoute>
+                  <CheckoutPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders"
+              element={
+                <ProtectedRoute>
+                  <OrderHistoryPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminRoute>
+                    <AdminDashboard />
+                  </AdminRoute>
                 </ProtectedRoute>
               }
             />

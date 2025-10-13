@@ -163,26 +163,36 @@ export const ecommerceApi = {
 
   async addToCart(productId, variantId = null, quantity = 1) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      // Get current session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || !session.user) {
+        throw new Error('User not authenticated');
+      }
+
+      const user = session.user;
 
       // Get product price
-      const { data: product } = await supabase
+      const { data: product, error: productError } = await supabase
         .from('ecommerce_products')
         .select('price')
         .eq('id', productId)
         .single();
 
+      if (productError) {
+        console.error('Error fetching product:', productError);
+        throw new Error('Product not found');
+      }
+
       const price = product?.price || 0;
 
       // Check if item already exists in cart
-      const { data: existing } = await supabase
+      const { data: existing, error: existingError } = await supabase
         .from('shopping_cart')
         .select('*')
         .eq('user_id', user.id)
         .eq('product_id', productId)
-        .eq('variant_id', variantId)
-        .single();
+        .is('variant_id', variantId)
+        .maybeSingle();
 
       let result;
       if (existing) {

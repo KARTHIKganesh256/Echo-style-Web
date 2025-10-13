@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { ShoppingCart, Heart } from 'lucide-react';
 import { productsAPI, authAPI } from '../utils/api';
 import ecommerceApi from '../utils/ecommerceApi';
+import { supabase } from '../utils/supabase';
 import useAuthStore from '../store/useAuthStore';
 import SkeletonCard from '../components/SkeletonCard';
 
@@ -17,7 +18,7 @@ const ProductsPage = () => {
     productType: 'All',
     chroma: 'All',
   });
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const [savedProducts, setSavedProducts] = useState(new Set());
   const [wishlist, setWishlist] = useState(new Set());
   const [addingToCart, setAddingToCart] = useState({});
@@ -110,21 +111,47 @@ const ProductsPage = () => {
 
   const handleAddToCart = async (product) => {
     try {
-      if (!user) {
-        alert('Please login to add items to cart');
+      // Check authentication status
+      if (!isAuthenticated || !user) {
+        alert('🔐 Please login to add items to cart');
+        navigate('/login');
+        return;
+      }
+
+      // Verify session is valid
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('🔐 Your session has expired. Please login again.');
         navigate('/login');
         return;
       }
 
       setAddingToCart(prev => ({ ...prev, [product.id]: true }));
-      const { error } = await ecommerceApi.addToCart(product.id);
       
-      if (error) throw error;
+      const { data, error } = await ecommerceApi.addToCart(product.id);
       
-      alert('✅ Added to cart!');
+      if (error) {
+        console.error('Cart error:', error);
+        throw error;
+      }
+      
+      // Success!
+      alert('✅ Added to cart successfully!');
+      
+      // Optional: Show a toast notification instead of alert
+      console.log('✅ Product added to cart:', product.name);
+      
     } catch (error) {
-      console.error('Error adding to cart:', error);
-      alert('Failed to add to cart');
+      console.error('❌ Error adding to cart:', error);
+      
+      if (error.message.includes('not authenticated')) {
+        alert('🔐 Please login to continue shopping');
+        navigate('/login');
+      } else if (error.message.includes('Product not found')) {
+        alert('❌ This product is no longer available');
+      } else {
+        alert('❌ Failed to add to cart. Please try again.');
+      }
     } finally {
       setAddingToCart(prev => ({ ...prev, [product.id]: false }));
     }
@@ -132,13 +159,23 @@ const ProductsPage = () => {
 
   const handleToggleWishlist = async (productId) => {
     try {
-      if (!user) {
-        alert('Please login to add to wishlist');
+      // Check authentication
+      if (!isAuthenticated || !user) {
+        alert('🔐 Please login to add to wishlist');
         navigate('/login');
         return;
       }
 
-      await ecommerceApi.toggleWishlist(productId);
+      const { error } = await ecommerceApi.toggleWishlist(productId);
+      
+      if (error) {
+        if (error.message.includes('not authenticated')) {
+          alert('🔐 Please login to continue');
+          navigate('/login');
+          return;
+        }
+        throw error;
+      }
       
       setWishlist(prev => {
         const newSet = new Set(prev);
@@ -149,8 +186,11 @@ const ProductsPage = () => {
         }
         return newSet;
       });
+      
+      console.log('✅ Wishlist updated');
     } catch (error) {
       console.error('Error toggling wishlist:', error);
+      alert('❌ Failed to update wishlist. Please try again.');
     }
   };
 

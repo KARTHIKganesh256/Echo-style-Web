@@ -61,6 +61,11 @@ const Navbar = () => {
                       ✨ Skin Care
                     </Button>
                   </Link>
+                  <Link to="/ai-studio">
+                    <Button variant="ghost" size="sm" className="text-white hover:text-purple-200 hover:bg-white/10 border border-yellow-400/40">
+                      🤖 AI Studio
+                    </Button>
+                  </Link>
                   <Link to="/upload">
                     <Button variant="ghost" size="sm" className="text-white hover:text-purple-200 hover:bg-white/10">
                       📸 Photo Analysis

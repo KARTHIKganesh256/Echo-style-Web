@@ -18,6 +18,7 @@ import ShoppingCartPage from './pages/ShoppingCartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import OrderHistoryPage from './pages/OrderHistoryPage';
 import AdminDashboard from './pages/AdminDashboard';
+import AIStudioPage from './pages/AIStudioPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 
@@ -129,6 +130,14 @@ function App() {
                   <AdminRoute>
                     <AdminDashboard />
                   </AdminRoute>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ai-studio"
+              element={
+                <ProtectedRoute>
+                  <AIStudioPage />
                 </ProtectedRoute>
               }
             />

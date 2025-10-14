@@ -42,3 +42,6 @@ CREATE TRIGGER update_skin_care_analyses_updated_at
 
 
 
+
+
+
